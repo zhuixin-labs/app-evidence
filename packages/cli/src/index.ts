@@ -299,13 +299,17 @@ async function setup(json: boolean, args: string[]): Promise<void> {
   }
   await doctor(json);
   if (json && !configPath) return;
-  const serverEntry = path.resolve(__dirname, "../../mcp/dist/index.js");
-  const env = {
+  const serverEntry = resolveMcpEntry();
+  const env: Record<string, string> = {
     APPTRACE_WORKSPACE_ROOT: config.workspaceRoot,
     APPTRACE_ENGINE_PATH: config.enginePath,
-    APPTRACE_ANALYSIS_ENGINE_PATH: config.analysisEnginePath,
     APPTRACE_IPATOOL_PATH: config.ipatoolPath
   };
+  // Only pin the analysis engine when it really exists, otherwise the engine
+  // inherits a path that can never work instead of resolving its own default.
+  if (fs.existsSync(config.analysisEnginePath)) {
+    env.APPTRACE_ANALYSIS_ENGINE_PATH = config.analysisEnginePath;
+  }
   if (configPath) {
     const absolute = path.resolve(configPath);
     const extension = path.extname(absolute).toLowerCase();
@@ -330,19 +334,14 @@ async function setup(json: boolean, args: string[]): Promise<void> {
       );
     } else if (extension === ".toml") {
       fs.mkdirSync(path.dirname(absolute), { recursive: true, mode: 0o700 });
+      const envToml = Object.entries(env)
+        .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
+        .join(", ");
       const toml = [
         "[mcp_servers.apptrace]",
         `command = ${JSON.stringify(process.execPath)}`,
         `args = [${JSON.stringify(serverEntry)}]`,
-        `env = { APPTRACE_WORKSPACE_ROOT = ${JSON.stringify(
-          env.APPTRACE_WORKSPACE_ROOT
-        )}, APPTRACE_ENGINE_PATH = ${JSON.stringify(
-          env.APPTRACE_ENGINE_PATH
-        )}, APPTRACE_ANALYSIS_ENGINE_PATH = ${JSON.stringify(
-          env.APPTRACE_ANALYSIS_ENGINE_PATH
-        )}, APPTRACE_IPATOOL_PATH = ${JSON.stringify(
-          env.APPTRACE_IPATOOL_PATH
-        )} }`,
+        `env = { ${envToml} }`,
         ""
       ].join("\n");
       fs.writeFileSync(absolute, toml, { mode: 0o600 });
@@ -358,16 +357,33 @@ async function setup(json: boolean, args: string[]): Promise<void> {
     }
     console.log(`MCP config written: ${absolute}`);
   }
+  const escape = (value: string) => value.replace(/\\/g, "\\\\");
+  const envDisplay = Object.entries(env)
+    .map(([key, value]) => `${key} = "${escape(value)}"`)
+    .join(", ");
   console.log(`
 MCP configuration:
 
 [mcp_servers.apptrace]
-command = "${process.execPath.replace(/\\/g, "\\\\")}"
-args = ["${serverEntry.replace(/\\/g, "\\\\")}"]
-env = { APPTRACE_WORKSPACE_ROOT = "${env.APPTRACE_WORKSPACE_ROOT.replace(/\\/g, "\\\\")}", APPTRACE_ENGINE_PATH = "${env.APPTRACE_ENGINE_PATH.replace(/\\/g, "\\\\")}", APPTRACE_ANALYSIS_ENGINE_PATH = "${env.APPTRACE_ANALYSIS_ENGINE_PATH.replace(/\\/g, "\\\\")}", APPTRACE_IPATOOL_PATH = "${env.APPTRACE_IPATOOL_PATH.replace(/\\/g, "\\\\")}" }
+command = "${escape(process.execPath)}"
+args = ["${escape(serverEntry)}"]
+env = { ${envDisplay} }
 
 首次写入配置后重载一次 Agent 客户端。
 `);
+}
+
+/**
+ * Global installs nest workspace packages under the CLI package
+ * (node_modules/@zhuixin/cli/node_modules/@zhuixin/mcp), so a fixed
+ * ../../mcp path only works inside the monorepo.
+ */
+function resolveMcpEntry(): string {
+  try {
+    return require.resolve("@zhuixin/mcp");
+  } catch {
+    return path.resolve(__dirname, "../../mcp/dist/index.js");
+  }
 }
 
 async function authLogin(): Promise<void> {

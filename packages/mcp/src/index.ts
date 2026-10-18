@@ -11,7 +11,8 @@ import {
 import { CHANNELS } from "@zhuixin/shared";
 import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
@@ -562,9 +563,18 @@ export async function startMcpServer(
   return mcp;
 }
 
-const invokedDirectly =
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const invokedDirectly = isEntryPoint();
+
+function isEntryPoint(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    // Compare real paths: /tmp and npm bin shims are symlinked on macOS/Linux,
+    // and a string comparison silently prevents the server from starting.
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
 if (invokedDirectly) {
   void startMcpServer().catch((error) => {
     console.error(

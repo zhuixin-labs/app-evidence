@@ -84,32 +84,36 @@ flowchart LR
 
 ## Quick start
 
-> **Preview:** package publication is in progress. The source preview below uses the
-> public Open Core packages; the commercial analysis engine is distributed separately.
+> **Preview:** the public packages are published under `@zhuixin`. The commercial
+> analysis engine is distributed separately.
 
-The public repository contains the integration layer. Analysis commands require a
-separately distributed engine build or preview access.
+```bash
+npm install -g @zhuixin/cli
+apptrace setup
+apptrace engine install <engine-file> --sha256 <sha256>
+apptrace auth login
+apptrace analyze \
+  https://apps.apple.com/cn/app/id1616124777 \
+  --goals tech_stack,feature_map,report
+```
+
+Generate an MCP configuration for your agent:
+
+```bash
+apptrace setup --write-config ./.codex/config.toml
+```
+
+See [Getting started](docs/getting-started.md) for the full first-run flow.
+
+Working on the project itself:
 
 ```bash
 git clone git@github.com:zhuixin-labs/app-evidence.git
 cd app-evidence
 pnpm install
 pnpm build
-
-node packages/cli/dist/index.js setup
-node packages/cli/dist/index.js auth login
-node packages/cli/dist/index.js analyze \
-  https://apps.apple.com/cn/app/id1616124777 \
-  --goals tech_stack,feature_map,report
+node packages/cli/dist/index.js doctor
 ```
-
-Generate an MCP configuration:
-
-```bash
-node packages/cli/dist/index.js setup --write-config ./.codex/config.toml
-```
-
-See [Getting started](docs/getting-started.md) for the full first-run flow.
 
 ## MCP-native
 
