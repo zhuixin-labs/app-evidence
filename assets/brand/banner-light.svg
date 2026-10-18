@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="AppTrace — Evidence-backed app analysis for coding agents">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FBFF"/>
+      <stop offset=".58" stop-color="#EDF6FF"/>
+      <stop offset="1" stop-color="#F7F8FA"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="80" y1="70" x2="250" y2="290" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A84FF"/>
+      <stop offset="1" stop-color="#30B0C7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="420" rx="36" fill="url(#bg)"/>
+  <circle cx="1110" cy="80" r="210" fill="#0A84FF" opacity=".055"/>
+  <circle cx="1180" cy="390" r="180" fill="#30B0C7" opacity=".06"/>
+  <rect x="80" y="86" width="190" height="190" rx="46" fill="url(#mark)"/>
+  <path d="M126 238 175 124l49 114" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M148 200h54" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="175" cy="126" r="8" fill="#FFFFFF"/>
+  <circle cx="126" cy="238" r="6" fill="#C7EEFF"/>
+  <circle cx="224" cy="238" r="6" fill="#C7EEFF"/>
+  <text x="320" y="190" fill="#0F172A" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="76" font-weight="700" letter-spacing="-3">AppTrace</text>
+  <text x="324" y="240" fill="#475569" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="23" font-weight="450">Evidence-backed analysis for coding agents</text>
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="20" font-weight="600">
+    <rect x="324" y="286" width="132" height="42" rx="21" fill="#FFFFFF" stroke="#D8E8F7"/>
+    <text x="390" y="314" text-anchor="middle" fill="#0B67C2">MCP native</text>
+    <rect x="470" y="286" width="124" height="42" rx="21" fill="#FFFFFF" stroke="#D8E8F7"/>
+    <text x="532" y="314" text-anchor="middle" fill="#0B67C2">Local-first</text>
+    <rect x="608" y="286" width="158" height="42" rx="21" fill="#FFFFFF" stroke="#D8E8F7"/>
+    <text x="687" y="314" text-anchor="middle" fill="#0B67C2">Open Core</text>
+  </g>
+</svg>

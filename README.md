@@ -1,136 +1,187 @@
-# AppTrace
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/banner-dark.svg">
+    <img src="assets/brand/banner-light.svg" alt="AppTrace — Evidence-backed app analysis for coding agents" width="100%">
+  </picture>
+</p>
 
-> 工作名：AppTrace / 应用脉络
+<p align="center">
+  <a href="https://github.com/zhuixin-labs/app-evidence/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <img alt="Status" src="https://img.shields.io/badge/status-preview-0A84FF.svg">
+  <img alt="MCP" src="https://img.shields.io/badge/agent-MCP%20native-30B0C7.svg">
+  <img alt="Local first" src="https://img.shields.io/badge/data-local--first-34C759.svg">
+</p>
 
-本仓库采用 Open Core：公开 MCP、CLI、协议和 metadata 层；分析引擎作为
-独立私有制品分发，不包含在此公开仓库中。公开部分使用 Apache-2.0。
+<p align="center">
+  <strong>Turn an authorized app package into evidence your coding agent can actually use.</strong>
+</p>
 
-Agent 原生的本地应用分析工作台。主入口是 CLI 和 MCP Server，Electron
-只作为可选的登录、人工确认和 Evidence 浏览控制台。
+<p align="center">
+  AppTrace connects app acquisition, static analysis, structured findings, evidence, and reports to MCP-compatible agents.
+</p>
 
-当前仓库正在从原型迁移到 headless-first 架构。底层分析引擎通过 Provider
-接入，产品层不依赖单一逆向工具。
+---
 
-## 目录
+## Why AppTrace
+
+Most reverse-engineering tools stop at a binary, a decompiler, or a folder full of JSON.
+
+AppTrace produces a reviewable analysis surface:
+
+- **Technology and feature map** — frameworks, routes, modules, assets, storage, and network candidates.
+- **Evidence-backed findings** — every important result carries a source location and Evidence ID.
+- **Agent-ready tools** — analyze, search, inspect, compare, and report through MCP.
+- **Local-first execution** — app packages and Apple credentials stay on your machine.
+- **Explicit uncertainty** — encrypted code, incomplete coverage, and static-analysis limits are reported instead of hidden.
+
+## What it looks like
 
 ```text
-packages/
-  shared/   共享领域类型和 IPC schema
-  protocol/     私有引擎协议
-  engine-client/ 公开引擎调用层
-  metadata/     Target / Artifact / Job / Capability / Evidence
-  cli/      setup / doctor / auth / analyze / mcp
-  mcp/      Agent MCP Server
-skills/
-  apptrace/ Agent 工作流说明
+Target     车工计算器
+Artifact   IPA · 18.7 MB · SHA-256 verified
+Tech       uni-app / HBuilder
+Routes     195
+Modules    17
+Native     1,485 procedures · 6,203 strings
+Protection cryptid=1 · native decompilation blocked
+Report     targets/.../reports/<job-id>.md
 ```
 
-## 开发
+A typical agent session can continue with:
+
+```text
+Which routes are related to threading?
+Find native symbols related to “main”.
+Compare the last two analyzed versions.
+Generate a report with evidence and limitations.
+```
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[App Store URL or local package] --> B[Target + Artifact]
+    B --> C[Static analysis engine]
+    C --> D[Structured findings]
+    C --> E[Evidence index]
+    D --> F[Agent questions]
+    E --> F
+    D --> G[Review-ready report]
+    E --> G
+```
+
+## Core capabilities
+
+| Capability | What it gives you |
+| --- | --- |
+| Analyze application | Technology hints, routes, modules, assets, storage, and limitations |
+| Inspect native code | Architecture, symbols, strings, and encryption state |
+| Search findings | Query routes, modules, artifacts, and native procedures |
+| Compare versions | Added, removed, and unchanged routes, modules, assets, and endpoints |
+| Generate report | A Markdown deliverable tied to Evidence IDs |
+| Run through MCP | Let Codex, Claude, Cursor, or another MCP client orchestrate the workflow |
+
+## Quick start
+
+> **Preview:** package publication is in progress. The source preview below uses the
+> public Open Core packages; the commercial analysis engine is distributed separately.
+
+The public repository contains the integration layer. Analysis commands require a
+separately distributed engine build or preview access.
 
 ```bash
+git clone git@github.com:zhuixin-labs/app-evidence.git
+cd app-evidence
 pnpm install
-pnpm typecheck
-pnpm test
 pnpm build
-pnpm test:mcp
-```
 
-## 本地试运行
-
-当前产品目录直接复用已经准备好的分析环境。开发阶段可以这样运行：
-
-```bash
-export APPTRACE_WORKSPACE_ROOT=/Users/daipeng/github/rea-test/workbench-data/dev
-export APPTRACE_ENGINE_PATH=/Users/daipeng/github/rea-test/apptrace-private/packages/engine/dist/engine-main.js
-export APPTRACE_IPATOOL_PATH=/Users/daipeng/github/rea-test/tools/ipatool/bin/ipatool
-
-node packages/cli/dist/index.js doctor
-node packages/cli/dist/index.js auth status
+node packages/cli/dist/index.js setup
+node packages/cli/dist/index.js auth login
 node packages/cli/dist/index.js analyze \
-  --target 4171b794-11b4-4c24-9840-c8626c18a448 \
-  --goals tech_stack,feature_map,native_risk,report
-node packages/cli/dist/index.js search \
-  4171b794-11b4-4c24-9840-c8626c18a448 thread --type route
-node packages/cli/dist/index.js native search \
-  4171b794-11b4-4c24-9840-c8626c18a448 main --kind procedures
-node packages/cli/dist/index.js compare \
-  4171b794-11b4-4c24-9840-c8626c18a448 <left-artifact> <right-artifact>
+  https://apps.apple.com/cn/app/id1616124777 \
+  --goals tech_stack,feature_map,report
 ```
 
-生成 MCP 配置：
+Generate an MCP configuration:
 
 ```bash
-node packages/cli/dist/index.js setup --write-config /path/to/mcp.json
-node packages/cli/dist/index.js setup --install
+node packages/cli/dist/index.js setup --write-config ./.codex/config.toml
 ```
 
-## MCP
+See [Getting started](docs/getting-started.md) for the full first-run flow.
 
-构建后直接运行：
+## MCP-native
 
-```bash
-node packages/mcp/dist/index.js
+Once configured, an agent can use:
+
+```text
+analyze_app
+get_analysis_run
+search_findings
+search_native
+decompile_function
+compare_versions
+generate_report
+list_evidence
 ```
 
-也可以从 CLI 启动：
+AppTrace returns compact, structured results by default. Large semantic graphs remain in
+local Evidence files and are read only when needed.
 
-```bash
-node packages/cli/dist/index.js mcp
-```
+See [MCP setup](docs/mcp.md) for client configuration and tool details.
 
-当前暴露的工具：
+## Built for real analysis work
 
-- `analyze_app`
-- `get_analysis_run`
-- `list_targets`
-- `auth_status`
-- `get_job`
-- `search_findings`
-- `search_native`
-- `decompile_function`
-- `list_evidence`
-- `generate_report`
-- `compare_versions`
-- `list_capabilities`
+- **Competitive teardown** — understand the technology stack, page map, and product surface.
+- **Release audit** — compare versions and detect routes, assets, and native changes.
+- **Migration research** — identify frameworks, modules, and integration boundaries.
+- **Agent-assisted investigation** — continue from a summary into focused evidence searches.
 
-Codex / 兼容 MCP 客户端配置：
+## Security and authorization
 
-```toml
-[mcp_servers.apptrace]
-command = "node"
-args = ["/absolute/path/to/apptrace/packages/mcp/dist/index.js"]
-```
+AppTrace is intended for applications you own or are authorized to analyze.
 
-## 当前状态
+- Apple passwords, 2FA codes, cookies, and keychain passphrases never enter the agent context.
+- The target application is not executed.
+- Encrypted regions are identified explicitly and are not treated as trustworthy decompilation.
+- Analysis is local by default; app packages are not uploaded to an AppTrace service.
 
-已完成：
+Read [Security](SECURITY.md) before analyzing a third-party package.
 
-- 独立 `apptrace/` 产品根目录。
-- `@zhuixin/shared`、`@zhuixin/protocol`、`@zhuixin/engine-client`、`@zhuixin/metadata`。
-- 高层 `AppAnalysisService`。
-- CLI 的 `doctor`、`auth`、`targets`、`analyze`、`report`、`jobs`、`mcp`。
-- MCP Server 和 12 个基础工具。
-- JS 路由、模块、资源、接口、存储与原生统计的紧凑结果。
-- Finding 与 Evidence 的 SQLite / JSON 持久化索引。
-- 路由、模块、原生符号搜索。
-- 原生搜索到反编译的工具闭环。
-- 异步 `analyze_app` / `get_analysis_run` 任务。
-- Artifact 版本对比。
-- 相邻工具自动发现、setup 检查和 JSON/TOML MCP 配置生成。
-- macOS arm64 的 JDK/Ghidra/ipatool 自动下载、校验、解压和 Workspace 启动器生成。
-- npm 打包检查流程。
-- 真实 IPA 验证。
-- MCP 工具发现 smoke test。
+## Open Core
 
-尚未完成：
+The integration layer is open source under Apache-2.0:
 
-- 自动安装器目前只覆盖 macOS arm64；Windows/Linux 仍使用外部工具路径。
-- Desktop 控制台迁移。
-- Windows Target Provider。
+- MCP server and CLI
+- Engine protocol and client
+- Metadata, Target, Artifact, Job, and Evidence models
+- Agent Skill
 
-详细实施方案见：
-[AppTrace Agent 原生实施方案](../docs/apptrace-agent-first-implementation.md)
+The commercial analysis engine, advanced report packs, and team capabilities are
+distributed separately. This keeps the public integration surface open while preserving
+the core analysis product.
 
-发行与打包步骤见 [RELEASE.md](RELEASE.md)。
-Windows x64 验收步骤见
-[docs/windows-verification.md](docs/windows-verification.md)。
+## Documentation
+
+- [Getting started](docs/getting-started.md)
+- [MCP setup](docs/mcp.md)
+- [Architecture](docs/architecture.md)
+- [Security](SECURITY.md)
+- [Windows verification](docs/windows-verification.md)
+- [Contributing](CONTRIBUTING.md)
+
+## Status
+
+AppTrace is in preview. The core analysis loop is working on macOS; Windows host
+validation and the Windows Target Provider are the next platform milestones.
+
+## License
+
+Public integration packages are licensed under [Apache-2.0](LICENSE). The private
+analysis engine has a separate commercial license.
+
+---
+
+<p align="center">
+  <sub>Built for developers who want answers, not just artifacts.</sub>
+</p>

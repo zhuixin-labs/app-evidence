@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="AppTrace">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset=".55" stop-color="#0B2137"/>
+      <stop offset="1" stop-color="#0A3141"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="420" y1="145" x2="780" y2="495" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A84FF"/>
+      <stop offset="1" stop-color="#41D4CE"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <circle cx="1120" cy="80" r="310" fill="#0A84FF" opacity=".12"/>
+  <circle cx="120" cy="620" r="250" fill="#30B0C7" opacity=".1"/>
+  <rect x="510" y="110" width="260" height="260" rx="64" fill="url(#mark)"/>
+  <path d="M572 314 640 152l68 162" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M602 262h76" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="640" cy="154" r="11" fill="#FFFFFF"/>
+  <text x="640" y="466" text-anchor="middle" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="86" font-weight="700" letter-spacing="-4">AppTrace</text>
+  <text x="640" y="526" text-anchor="middle" fill="#AFC0D5" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="30">Evidence-backed app analysis for coding agents</text>
+</svg>
