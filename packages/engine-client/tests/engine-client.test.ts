@@ -16,11 +16,10 @@ describe("EngineClient", () => {
   it("speaks the versioned engine protocol over stdio", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apptrace-engine-"));
     tempDirs.push(dir);
-    const executable = path.join(dir, "fake-engine");
+    const executable = path.join(dir, "fake-engine.js");
     fs.writeFileSync(
       executable,
-      `#!/usr/bin/env node
-const readline = require("node:readline");
+      `const readline = require("node:readline");
 const lines = readline.createInterface({ input: process.stdin });
 lines.on("line", (line) => {
   const request = JSON.parse(line);
