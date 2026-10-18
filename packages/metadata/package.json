@@ -10,7 +10,6 @@
   },
   "publishConfig": {"access": "public"},
   "engines": {"node": ">=22.19"},
-  "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": ["dist"],
