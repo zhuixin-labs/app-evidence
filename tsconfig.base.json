@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@zhuixin/shared": ["packages/shared/src/index.ts"],
+      "@zhuixin/mcp": ["packages/mcp/src/index.ts"],
+      "@zhuixin/protocol": ["packages/protocol/src/index.ts"],
+      "@zhuixin/engine-client": ["packages/engine-client/src/index.ts"]
+      ,"@zhuixin/metadata": ["packages/metadata/src/index.ts"]
+    }
+  }
+}

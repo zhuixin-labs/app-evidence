@@ -1,0 +1,17 @@
+.DS_Store
+node_modules/
+dist/
+coverage/
+.apptrace/
+.codex/config.toml
+dist-packages/
+*.tgz
+*.env
+*.env.*
+*.log
+*.ipa
+*.app
+*.dmg
+*.exe
+*.msi
+*.msix

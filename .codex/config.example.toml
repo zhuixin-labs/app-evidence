@@ -1,0 +1,4 @@
+[mcp_servers.apptrace]
+command = "node"
+args = ["/absolute/path/to/apptrace/packages/mcp/dist/index.js"]
+env = { APPTRACE_WORKSPACE_ROOT = "/absolute/path/to/apptrace-workspace" }

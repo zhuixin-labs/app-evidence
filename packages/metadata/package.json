@@ -1,0 +1,19 @@
+{
+  "name": "@zhuixin/metadata",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@zhuixin/engine-client": "workspace:*",
+    "@zhuixin/shared": "workspace:*",
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {"tsup": "^8.5.0"}
+}

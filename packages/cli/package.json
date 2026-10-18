@@ -1,0 +1,24 @@
+{
+  "name": "@zhuixin/cli",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "main": "dist/index.js",
+  "bin": {
+    "apptrace": "dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@zhuixin/metadata": "workspace:*",
+    "@zhuixin/mcp": "workspace:*",
+    "@zhuixin/shared": "workspace:*",
+    "rea-agents": "6.4.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0"
+  }
+}
