@@ -83,8 +83,7 @@ One command per client. The only difference is where that client reads its confi
 | Claude Desktop (Windows) | `apptrace setup --write-config "%APPDATA%\Claude\claude_desktop_config.json"` |
 
 Restart the client, or open a new conversation, so it picks up the server. Ask for the
-tool list (for example `/mcp` in Codex or Claude Code) and you should see twelve AppTrace
-tools.
+tool list — `/mcp` in Claude Code — and you should see twelve AppTrace tools.
 
 Anything that speaks MCP over stdio works the same way: the generated file is a standard
 `mcpServers` entry for JSON clients and `[mcp_servers.apptrace]` for TOML clients.

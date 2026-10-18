@@ -22,8 +22,8 @@ apptrace setup --write-config ~/.codex/config.toml
 ```
 
 TOML paths get `[mcp_servers.apptrace]`; JSON paths get an `mcpServers` object.
-Restart the client afterwards, then ask it for its tool list — `/mcp` in Codex and
-Claude Code — and you should see twelve `apptrace` tools.
+Restart the client afterwards, then ask it for its tool list — `/mcp` in Claude Code —
+and you should see twelve `apptrace` tools.
 
 ### What gets written
 
