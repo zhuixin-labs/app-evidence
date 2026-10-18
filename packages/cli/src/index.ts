@@ -6,6 +6,7 @@ import {
   AppAnalysisService,
   CoreFailure,
   CoreServer,
+  installEngineArtifact,
   VersionComparisonService,
   loadConfig,
   type AnalysisGoal,
@@ -46,6 +47,7 @@ Usage:
   apptrace evidence <target-id>
   apptrace compare <target-id> <left-artifact-id> <right-artifact-id> [--force]
   apptrace capabilities [target-id]
+  apptrace engine install <engine-file> [--sha256 <digest>]
   apptrace mcp
 
 Examples:
@@ -556,6 +558,13 @@ async function evidence(targetId: string): Promise<void> {
   });
 }
 
+async function installEngine(file: string, args: string[]): Promise<void> {
+  const config = loadConfig();
+  const expected = option(args, "--sha256");
+  const installed = installEngineArtifact(config.workspaceRoot, file, expected);
+  printJson(installed);
+}
+
 async function compare(
   targetId: string | undefined,
   leftArtifactId: string | undefined,
@@ -650,6 +659,11 @@ async function main(): Promise<void> {
   if (command === "evidence") {
     if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "缺少 target ID。");
     return evidence(subcommand);
+  }
+  if (command === "engine" && subcommand === "install") {
+    const file = args[0];
+    if (!file) throw new CoreFailure("ENGINE_REQUIRED", "缺少 engine 文件路径。");
+    return installEngine(file, args);
   }
   if (command === "compare") {
     if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "缺少 target ID。");

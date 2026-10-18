@@ -19,3 +19,4 @@ export type {
   VersionSnapshot
 } from "./app/compare.js";
 export { CoreFailure } from "./errors.js";
+export { installEngineArtifact } from "./engine/install.js";

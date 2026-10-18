@@ -39,6 +39,7 @@ export function loadConfig(
     enginePath:
       env.APPTRACE_ENGINE_PATH ||
       firstExisting([
+        path.join(workspaceTools, "engine", "current", "engine-main.js"),
         path.join(cwd, "apptrace-engine", "dist", "engine-main.js"),
         path.join(legacyRoot, "apptrace-private", "packages", "engine", "dist", "engine-main.js")
       ]) ||
