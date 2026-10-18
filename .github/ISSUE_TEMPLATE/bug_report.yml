@@ -1,0 +1,56 @@
+name: Bug report
+description: Report a reproducible AppTrace problem
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include Apple credentials, private IPA files, personal reports, or access tokens.
+  - type: input
+    id: version
+    attributes:
+      label: AppTrace version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: host
+    attributes:
+      label: Host platform
+      options:
+        - macOS arm64
+        - macOS x64
+        - Windows x64
+        - Linux x64
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Agent client
+      options:
+        - Codex
+        - Claude
+        - Cursor
+        - CLI only
+        - Other MCP client
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove paths containing personal information and all credential material.

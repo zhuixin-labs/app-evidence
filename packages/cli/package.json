@@ -2,7 +2,17 @@
   "name": "@zhuixin/cli",
   "version": "0.1.0",
   "license": "Apache-2.0",
-  "private": true,
+  "description": "AppTrace CLI for evidence-backed application analysis",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhuixin-labs/app-evidence.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/zhuixin-labs/app-evidence",
+  "bugs": {"url": "https://github.com/zhuixin-labs/app-evidence/issues"},
+  "keywords": ["mcp", "ai-agents", "app-analysis", "static-analysis", "ios", "ipa"],
+  "publishConfig": {"access": "public"},
+  "engines": {"node": ">=22.19"},
   "main": "dist/index.js",
   "bin": {
     "apptrace": "dist/index.js"

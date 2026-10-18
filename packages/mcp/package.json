@@ -2,7 +2,17 @@
   "name": "@zhuixin/mcp",
   "version": "0.1.0",
   "license": "Apache-2.0",
-  "private": true,
+  "description": "AppTrace MCP server for evidence-backed application analysis",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhuixin-labs/app-evidence.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/zhuixin-labs/app-evidence",
+  "bugs": {"url": "https://github.com/zhuixin-labs/app-evidence/issues"},
+  "keywords": ["mcp", "ai-agents", "app-analysis", "model-context-protocol"],
+  "publishConfig": {"access": "public"},
+  "engines": {"node": ">=22.19"},
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

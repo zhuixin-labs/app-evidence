@@ -2,6 +2,14 @@
   "name": "@zhuixin/metadata",
   "version": "0.1.0",
   "license": "Apache-2.0",
+  "description": "AppTrace metadata, workspace, artifact and job model",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhuixin-labs/app-evidence.git",
+    "directory": "packages/metadata"
+  },
+  "publishConfig": {"access": "public"},
+  "engines": {"node": ">=22.19"},
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

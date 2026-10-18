@@ -2,7 +2,14 @@
   "name": "@zhuixin/engine-client",
   "version": "0.1.0",
   "license": "Apache-2.0",
-  "private": true,
+  "description": "AppTrace client for the private analysis engine",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhuixin-labs/app-evidence.git",
+    "directory": "packages/engine-client"
+  },
+  "publishConfig": {"access": "public"},
+  "engines": {"node": ">=22.19"},
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",

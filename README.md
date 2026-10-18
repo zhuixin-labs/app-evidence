@@ -7,6 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/zhuixin-labs/app-evidence/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <a href="https://github.com/zhuixin-labs/app-evidence/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zhuixin-labs/app-evidence/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Status" src="https://img.shields.io/badge/status-preview-0A84FF.svg">
   <img alt="MCP" src="https://img.shields.io/badge/agent-MCP%20native-30B0C7.svg">
   <img alt="Local first" src="https://img.shields.io/badge/data-local--first-34C759.svg">

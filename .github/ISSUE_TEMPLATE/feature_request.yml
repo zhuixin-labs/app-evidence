@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest a workflow, capability, or integration
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What are you trying to accomplish?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed workflow
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Agent / MCP
+        - CLI / setup
+        - Analysis output
+        - Evidence / reports
+        - Windows support
+        - Documentation
+    validations:
+      required: true
