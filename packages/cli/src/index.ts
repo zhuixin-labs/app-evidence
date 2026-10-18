@@ -302,9 +302,11 @@ async function setup(json: boolean, args: string[]): Promise<void> {
   const serverEntry = resolveMcpEntry();
   const env: Record<string, string> = {
     APPTRACE_WORKSPACE_ROOT: config.workspaceRoot,
-    APPTRACE_ENGINE_PATH: config.enginePath,
     APPTRACE_IPATOOL_PATH: config.ipatoolPath
   };
+  if (fs.existsSync(config.enginePath)) {
+    env.APPTRACE_ENGINE_PATH = config.enginePath;
+  }
   // Only pin the analysis engine when it really exists, otherwise the engine
   // inherits a path that can never work instead of resolving its own default.
   if (fs.existsSync(config.analysisEnginePath)) {
