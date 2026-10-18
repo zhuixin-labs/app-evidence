@@ -54,6 +54,9 @@ jobs:
           node scripts/publish.mjs 2>&1 | tee publish.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
+            if grep -q ERR_PNPM_OTP_NON_INTERACTIVE publish.log; then
+              echo "::error title=NPM_TOKEN cannot bypass 2FA::npm rejected the publish because the token requires a one-time password. Recreate the granular access token with 'Bypass two-factor authentication' checked, then update the NPM_TOKEN secret."
+            fi
             message=$(grep -Ei 'npm (error|ERR)|ERR_PNPM|EOTP|E40[0-9]|E42[0-9]|OTP|unauthorized|forbidden|one-time password' publish.log | head -n 15 | tr '\r\n' '  ' | cut -c1-4000)
             if [ -z "$message" ]; then
               message=$(sed -n '/== Publishing/,/== Publish summary/p' publish.log | head -n 40 | tr '\r\n' '  ' | cut -c1-4000)
