@@ -1,19 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AppTrace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AppTrace trace mark">
   <defs>
-    <linearGradient id="bg" x1="80" y1="40" x2="430" y2="470" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0A84FF"/>
-      <stop offset="1" stop-color="#30B0C7"/>
+    <linearGradient id="trace" x1="120" y1="360" x2="400" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4DA3FF"/>
+      <stop offset=".55" stop-color="#22C7D6"/>
+      <stop offset="1" stop-color="#5EE0B5"/>
     </linearGradient>
-    <linearGradient id="shine" x1="140" y1="90" x2="370" y2="420" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF" stop-opacity=".98"/>
-      <stop offset="1" stop-color="#EAF8FF" stop-opacity=".84"/>
-    </linearGradient>
+    <radialGradient id="bg" cx="38%" cy="28%" r="78%">
+      <stop stop-color="#172A44"/>
+      <stop offset="1" stop-color="#081321"/>
+    </radialGradient>
   </defs>
-  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bg)"/>
-  <rect x="40" y="40" width="432" height="432" rx="96" fill="none" stroke="#FFFFFF" stroke-opacity=".2" stroke-width="2"/>
-  <path d="M150 382 256 120l106 262" fill="none" stroke="url(#shine)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M202 302h108" fill="none" stroke="url(#shine)" stroke-width="26" stroke-linecap="round"/>
-  <circle cx="256" cy="122" r="18" fill="#FFFFFF"/>
-  <circle cx="151" cy="382" r="13" fill="#BFEAFF"/>
-  <circle cx="361" cy="382" r="13" fill="#BFEAFF"/>
+  <circle cx="256" cy="256" r="238" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="218" fill="none" stroke="#7DD3FC" stroke-opacity=".18" stroke-width="3"/>
+  <path d="M128 345c28-8 44-55 66-88 26-39 64-69 111-59 35 7 47 38 68 55 12 10 26 13 48 6"
+    fill="none" stroke="url(#trace)" stroke-width="30" stroke-linecap="round"/>
+  <path d="M148 235c30 36 62 92 113 96 44 4 66-26 84-49"
+    fill="none" stroke="#8EEBFF" stroke-opacity=".48" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="128" cy="345" r="16" fill="#5EE0B5"/>
+  <circle cx="305" cy="198" r="15" fill="#E8FBFF"/>
+  <circle cx="421" cy="259" r="12" fill="#7DD3FC"/>
+  <circle cx="345" cy="282" r="9" fill="#22C7D6"/>
 </svg>

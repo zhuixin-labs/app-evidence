@@ -5,18 +5,24 @@
       <stop offset=".55" stop-color="#0B2137"/>
       <stop offset="1" stop-color="#0A3141"/>
     </linearGradient>
-    <linearGradient id="mark" x1="420" y1="145" x2="780" y2="495" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0A84FF"/>
-      <stop offset="1" stop-color="#41D4CE"/>
+    <linearGradient id="trace" x1="500" y1="360" x2="780" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4DA3FF"/>
+      <stop offset=".55" stop-color="#22C7D6"/>
+      <stop offset="1" stop-color="#5EE0B5"/>
     </linearGradient>
   </defs>
   <rect width="1280" height="640" fill="url(#bg)"/>
   <circle cx="1120" cy="80" r="310" fill="#0A84FF" opacity=".12"/>
   <circle cx="120" cy="620" r="250" fill="#30B0C7" opacity=".1"/>
-  <rect x="510" y="110" width="260" height="260" rx="64" fill="url(#mark)"/>
-  <path d="M572 314 640 152l68 162" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M602 262h76" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
-  <circle cx="640" cy="154" r="11" fill="#FFFFFF"/>
+  <circle cx="640" cy="240" r="130" fill="#101F35"/>
+  <circle cx="640" cy="240" r="118" fill="none" stroke="#7DD3FC" stroke-opacity=".22" stroke-width="3"/>
+  <path d="M555 295c13-5 25-31 37-49 16-24 37-42 63-36 19 5 25 24 38 34 12 10 23 10 35 3"
+    fill="none" stroke="url(#trace)" stroke-width="18" stroke-linecap="round"/>
+  <path d="M565 243c17 22 33 55 62 57 24 2 37-16 47-31"
+    fill="none" stroke="#8EEBFF" stroke-opacity=".5" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="555" cy="295" r="8" fill="#5EE0B5"/>
+  <circle cx="655" cy="209" r="8" fill="#E8FBFF"/>
+  <circle cx="728" cy="247" r="7" fill="#7DD3FC"/>
   <text x="640" y="466" text-anchor="middle" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="86" font-weight="700" letter-spacing="-4">AppTrace</text>
-  <text x="640" y="526" text-anchor="middle" fill="#AFC0D5" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="30">Evidence-backed app analysis for coding agents</text>
+  <text x="640" y="526" text-anchor="middle" fill="#AFC0D5" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="30">Evidence-backed analysis for coding agents</text>
 </svg>
