@@ -301,6 +301,7 @@ async function setup(json: boolean, args: string[]): Promise<void> {
   const env = {
     APPTRACE_WORKSPACE_ROOT: config.workspaceRoot,
     APPTRACE_ENGINE_PATH: config.enginePath,
+    APPTRACE_ANALYSIS_ENGINE_PATH: config.analysisEnginePath,
     APPTRACE_IPATOOL_PATH: config.ipatoolPath
   };
   if (configPath) {
@@ -335,6 +336,8 @@ async function setup(json: boolean, args: string[]): Promise<void> {
           env.APPTRACE_WORKSPACE_ROOT
         )}, APPTRACE_ENGINE_PATH = ${JSON.stringify(
           env.APPTRACE_ENGINE_PATH
+        )}, APPTRACE_ANALYSIS_ENGINE_PATH = ${JSON.stringify(
+          env.APPTRACE_ANALYSIS_ENGINE_PATH
         )}, APPTRACE_IPATOOL_PATH = ${JSON.stringify(
           env.APPTRACE_IPATOOL_PATH
         )} }`,
@@ -359,7 +362,7 @@ MCP configuration:
 [mcp_servers.apptrace]
 command = "${process.execPath.replace(/\\/g, "\\\\")}"
 args = ["${serverEntry.replace(/\\/g, "\\\\")}"]
-env = { APPTRACE_WORKSPACE_ROOT = "${env.APPTRACE_WORKSPACE_ROOT.replace(/\\/g, "\\\\")}", APPTRACE_ENGINE_PATH = "${env.APPTRACE_ENGINE_PATH.replace(/\\/g, "\\\\")}", APPTRACE_IPATOOL_PATH = "${env.APPTRACE_IPATOOL_PATH.replace(/\\/g, "\\\\")}" }
+env = { APPTRACE_WORKSPACE_ROOT = "${env.APPTRACE_WORKSPACE_ROOT.replace(/\\/g, "\\\\")}", APPTRACE_ENGINE_PATH = "${env.APPTRACE_ENGINE_PATH.replace(/\\/g, "\\\\")}", APPTRACE_ANALYSIS_ENGINE_PATH = "${env.APPTRACE_ANALYSIS_ENGINE_PATH.replace(/\\/g, "\\\\")}", APPTRACE_IPATOOL_PATH = "${env.APPTRACE_IPATOOL_PATH.replace(/\\/g, "\\\\")}" }
 
 首次写入配置后重载一次 Agent 客户端。
 `);

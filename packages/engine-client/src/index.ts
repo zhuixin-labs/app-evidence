@@ -13,7 +13,10 @@ export class EngineClient {
   private sequence = 0;
   private readonly pending = new Map<string, (value: EngineResponse) => void>();
 
-  constructor(private readonly executable: string) {}
+  constructor(
+    private readonly executable: string,
+    private readonly childEnv: NodeJS.ProcessEnv = {}
+  ) {}
 
   async start(workspacePath: string): Promise<void> {
     if (this.child) return;
@@ -22,7 +25,11 @@ export class EngineClient {
       : { command: this.executable, args: ["engine"] };
     this.child = spawn(spec.command, spec.args, {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, APPTRACE_WORKSPACE_ROOT: workspacePath }
+      env: {
+        ...process.env,
+        ...this.childEnv,
+        APPTRACE_WORKSPACE_ROOT: workspacePath
+      }
     });
     const lines = readline.createInterface({ input: this.child.stdout });
     lines.on("line", (line) => {

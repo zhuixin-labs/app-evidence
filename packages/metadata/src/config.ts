@@ -6,6 +6,7 @@ export interface CoreConfig {
   workspaceRoot: string;
   ipatoolPath: string;
   enginePath: string;
+  analysisEnginePath: string;
   licenseToken?: string;
   hostPlatform: NodeJS.Platform;
 }
@@ -23,6 +24,7 @@ export function loadConfig(
   const legacyRoot = path.resolve(cwd, "..");
   const resolvedWorkspaceRoot = path.resolve(workspaceRoot);
   const workspaceTools = path.join(resolvedWorkspaceRoot, "tools");
+  const reaName = hostPlatform === "win32" ? "rea.cmd" : "rea";
   const ipatoolName = hostPlatform === "win32" ? "ipatool.exe" : "ipatool";
   return {
     workspaceRoot: resolvedWorkspaceRoot,
@@ -41,6 +43,14 @@ export function loadConfig(
         path.join(legacyRoot, "apptrace-private", "packages", "engine", "dist", "engine-main.js")
       ]) ||
       path.resolve(cwd, "apptrace-engine/dist/engine-main.js"),
+    analysisEnginePath:
+      firstExisting([
+        env.APPTRACE_ANALYSIS_ENGINE_PATH,
+        env.APPTRACE_REA_PATH,
+        env.REA_PATH,
+        path.join(cwd, reaName),
+        path.join(legacyRoot, reaName)
+      ]) || path.resolve(cwd, reaName),
     licenseToken: env.APPTRACE_LICENSE,
     hostPlatform
   };

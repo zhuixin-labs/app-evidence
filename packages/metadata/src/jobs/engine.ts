@@ -59,7 +59,10 @@ export class EngineCapabilityRunner {
     artifactId: string,
     input: Record<string, unknown>
   ): Promise<void> {
-    const client = new EngineClient(this.config.enginePath);
+    const client = new EngineClient(this.config.enginePath, {
+      APPTRACE_WORKSPACE_ROOT: this.workspace.root,
+      APPTRACE_ANALYSIS_ENGINE_PATH: this.config.analysisEnginePath
+    });
     try {
       this.patch(job, { status: "analyzing", progress: 5, startedAt: new Date().toISOString() });
       await client.execute(this.workspace.root, job.capabilityId as never, {
