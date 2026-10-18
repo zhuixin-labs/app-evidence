@@ -5,6 +5,8 @@
 Keep these packages on the same version:
 
 - `@zhuixin/shared`
+- `@zhuixin/protocol`
+- `@zhuixin/engine-client`
 - `@zhuixin/metadata`
 - `@zhuixin/mcp`
 - `@zhuixin/cli`
@@ -23,10 +25,7 @@ pnpm test:mcp
 
 ```bash
 mkdir -p dist-packages
-pnpm --filter @zhuixin/shared pack --pack-destination dist-packages
-pnpm --filter @zhuixin/metadata pack --pack-destination dist-packages
-pnpm --filter @zhuixin/mcp pack --pack-destination dist-packages
-pnpm --filter @zhuixin/cli pack --pack-destination dist-packages
+pnpm -r pack --pack-destination dist-packages
 ```
 
 Inspect each tarball before publishing:
@@ -38,9 +37,23 @@ tar -tzf dist-packages/apptrace-*.tgz | sort
 ## Publish order
 
 1. `@zhuixin/shared`
-2. `@zhuixin/metadata`
-3. `@zhuixin/mcp`
-4. `@zhuixin/cli`
+2. `@zhuixin/protocol`
+3. `@zhuixin/engine-client`
+4. `@zhuixin/metadata`
+5. `@zhuixin/mcp`
+6. `@zhuixin/cli`
+
+## Automated publishing
+
+Do not enter an OTP for every release. Create an npm automation token with
+publish access for `@zhuixin`, store it as the GitHub repository secret
+`NPM_TOKEN`, bump versions together, and push a tag such as `v0.1.0`.
+
+The `Publish` workflow runs tests and publishes only the public packages.
+The private engine is never included.
+
+The local alternative is npm 2FA in `auth-only` mode, but an automation token
+restricted to publishing is preferred.
 
 Before publishing:
 
