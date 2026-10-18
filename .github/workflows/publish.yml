@@ -49,4 +49,12 @@ jobs:
       - name: Publish packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: node scripts/publish.mjs
+        run: |
+          set +e
+          node scripts/publish.mjs 2>&1 | tee publish.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 25 publish.log | tr '\r\n' '  ' | cut -c1-3000)
+            echo "::error title=npm publish failed::$message"
+          fi
+          exit "$status"
