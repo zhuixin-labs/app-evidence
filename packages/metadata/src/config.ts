@@ -1,6 +1,22 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+
+const requireFromHere = createRequire(__filename);
+
+/**
+ * The engine ships as a normal npm dependency of the CLI, so a global install
+ * needs no separate download step. An explicit path or a workspace install
+ * still wins, which keeps offline and pinned deployments possible.
+ */
+function packagedEnginePath(): string | undefined {
+  try {
+    return requireFromHere.resolve("@zhuixin/engine/engine-main.js");
+  } catch {
+    return undefined;
+  }
+}
 
 export interface CoreConfig {
   workspaceRoot: string;
@@ -43,6 +59,7 @@ export function loadConfig(
         path.join(cwd, "apptrace-engine", "dist", "engine-main.js"),
         path.join(legacyRoot, "apptrace-private", "packages", "engine", "dist", "engine-main.js")
       ]) ||
+      packagedEnginePath() ||
       path.resolve(cwd, "apptrace-engine/dist/engine-main.js"),
     analysisEnginePath:
       firstExisting([

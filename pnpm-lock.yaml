@@ -58,15 +58,15 @@ importers:
 
   packages/mcp:
     dependencies:
+      '@modelcontextprotocol/server':
+        specifier: ^2.3.1
+        version: 2.3.1
       '@zhuixin/metadata':
         specifier: workspace:*
         version: link:../metadata
       '@zhuixin/shared':
         specifier: workspace:*
         version: link:../shared
-      '@modelcontextprotocol/server':
-        specifier: ^2.3.1
-        version: 2.3.1
       zod:
         specifier: ^4.2.0
         version: 4.6.7
@@ -77,6 +77,9 @@ importers:
 
   packages/metadata:
     dependencies:
+      '@zhuixin/engine':
+        specifier: ^0.2.1
+        version: 0.2.1
       '@zhuixin/engine-client':
         specifier: workspace:*
         version: link:../engine-client
@@ -724,6 +727,11 @@ packages:
 
   '@xterm/headless@6.0.0':
     resolution: {integrity: sha512-5Yj1QINYCyzrZtf8OFIHi47iQtI+0qYFPHmouEfG8dHNxbZ9Tb9YGSuLcsEwj9Z+OL75GJqPyJbyoFer80a2Hw==}
+
+  '@zhuixin/engine@0.2.1':
+    resolution: {integrity: sha512-1Dtj2lH01XhvKdk9ChrErZgmBVXFBq4me55pJYLhNXuDrlPQPfKCIzR9d5WSOxaX6zVx1wxYsutTzT+OwzQDlQ==}
+    engines: {node: '>=22.19'}
+    hasBin: true
 
   '@zip.js/zip.js@2.15.0':
     resolution: {integrity: sha512-hYAuHAaWjt0axbofaDL5XUlmrQPsBDcK3f45ApZuh6N+8UGVk26GoGdtGDvcvzahsHytTQ6DtBVXwG9IcCMjjQ==}
@@ -1981,6 +1989,8 @@ snapshots:
   '@xterm/addon-serialize@0.14.0': {}
 
   '@xterm/headless@6.0.0': {}
+
+  '@zhuixin/engine@0.2.1': {}
 
   '@zip.js/zip.js@2.15.0': {}
 

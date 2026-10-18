@@ -1,6 +1,6 @@
 {
   "name": "@zhuixin/cli",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "license": "Apache-2.0",
   "description": "AppTrace CLI for evidence-backed application analysis",
   "repository": {

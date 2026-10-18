@@ -4,3 +4,6 @@ packages:
 allowBuilds:
   esbuild: true
   node-pty: true
+
+minimumReleaseAgeExclude:
+  - '@zhuixin/engine@0.2.1'

@@ -1,6 +1,6 @@
 {
   "name": "app-evidence",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "description": "Agent-native local application analysis and evidence workspace",
   "packageManager": "pnpm@11.5.1",

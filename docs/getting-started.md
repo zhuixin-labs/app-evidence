@@ -30,15 +30,17 @@ node packages/cli/dist/index.js setup --write-config ./.codex/config.toml
 
 Reload or restart the agent client after the configuration is written.
 
-If you have a separately distributed engine artifact, install it into the workspace
-with checksum verification:
+The analysis engine ships as a dependency of the CLI, so a normal install needs nothing
+else. To pin a specific build — offline installs, or an air-gapped machine — install an
+artifact into the workspace with checksum verification:
 
 ```bash
 node packages/cli/dist/index.js engine install /path/to/engine-main.js \
   --sha256 <artifact-sha256>
 ```
 
-The engine is stored under `tools/engine/current/` and is discovered automatically.
+A workspace engine takes precedence over the packaged one and is discovered
+automatically.
 
 ## Sign in to Apple
 
