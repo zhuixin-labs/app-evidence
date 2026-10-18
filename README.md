@@ -60,17 +60,27 @@ evidence instead of guessing.
 npm install -g @zhuixin/cli
 ```
 
-**2 · Prepare the machine once**
+**2 · Get the engine**
+
+The analysis engine is what turns a bundle into findings, and it is licensed separately
+from this repository. During the preview it is distributed as a single file.
+
+[Request preview access](https://github.com/zhuixin-labs/app-evidence/issues/new?title=Engine%20access%20request&body=Which%20apps%20are%20you%20planning%20to%20analyze%3F) —
+you will receive `engine-main.js` and its SHA-256.
+
+**3 · Prepare the machine once**
 
 ```bash
 apptrace engine install ./engine-main.js --sha256 <sha256>
 apptrace auth login
 ```
 
-The analysis engine is licensed separately — this is what turns a bundle into findings.
-Run `apptrace setup` at any time for a readiness check.
+`engine install` verifies the hash and puts the engine in your local workspace.
+`auth login` signs in to your Apple account so AppTrace can download apps you own — it
+uses [ipatool](https://github.com/majd/ipatool) and sends the 2FA prompt to your device.
+Both are one-time; run `apptrace setup` at any point for a readiness check.
 
-**3 · Connect your agent**
+**4 · Connect your agent**
 
 One command per client. The only difference is where that client reads its config.
 
@@ -88,7 +98,7 @@ tool list — `/mcp` in Claude Code — and you should see twelve AppTrace tools
 Anything that speaks MCP over stdio works the same way: the generated file is a standard
 `mcpServers` entry for JSON clients and `[mcp_servers.apptrace]` for TOML clients.
 
-**4 · Stop typing commands**
+**5 · Stop typing commands**
 
 This is the part that matters:
 
