@@ -1,6 +1,6 @@
 {
   "name": "@zhuixin/metadata",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "Apache-2.0",
   "description": "AppTrace metadata, workspace, artifact and job model",
   "repository": {
@@ -21,7 +21,8 @@
     "@zhuixin/engine": "^0.2.1",
     "@zhuixin/engine-client": "workspace:*",
     "@zhuixin/shared": "workspace:*",
-    "node-pty": "^1.1.0"
+    "node-pty": "^1.1.0",
+    "rea-agents": "6.4.0"
   },
   "devDependencies": {"tsup": "^8.5.0"}
 }
