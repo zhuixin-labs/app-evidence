@@ -40,7 +40,7 @@ function usage(): void {
   console.log(`AppTrace ${version}
 
 Usage:
-  apptrace setup [--json] [--install] [--write-config <path>]
+  apptrace setup [--json] [--install] [--write-config <path>] [--restart-client]
   apptrace doctor [--json]
   apptrace auth login
   apptrace auth status
@@ -347,22 +347,56 @@ async function setup(json: boolean, args: string[]): Promise<void> {
       process.stderr.write(`MCP config written: ${absolute}\n`);
       return;
     }
-    console.log(`MCP config written: ${absolute}`);
+    console.log(`配置已写入：${absolute}`);
   }
   const escape = (value: string) => value.replace(/\\/g, "\\\\");
   const envDisplay = Object.entries(env)
     .map(([key, value]) => `${key} = "${escape(value)}"`)
     .join(", ");
   console.log(`
-MCP configuration:
+MCP 配置（客户端读取这一段，键名保持英文）：
 
 [mcp_servers.apptrace]
 command = "${escape(process.execPath)}"
 args = ["${escape(serverEntry)}"]
 env = { ${envDisplay} }
 
-首次写入配置后重载一次 Agent 客户端。
+重启 Agent 客户端后生效。加 --restart-client 可以让 AppTrace 直接重启它。
 `);
+  if (configPath && hasFlag(args, "--restart-client")) {
+    const client = clientForConfig(path.resolve(configPath));
+    if (!client.app) {
+      throw new CoreFailure(
+        "RESTART_UNSUPPORTED",
+        `${client.name} 需要你自己重启（退出后重新打开）。`
+      );
+    }
+    await restartClient(client.app);
+    console.log(`已重启 ${client.name}。`);
+  }
+}
+
+function clientForConfig(configPath: string): { name: string; app?: string } {
+  const normalized = configPath.replace(/\\/g, "/").toLowerCase();
+  if (normalized.includes("claude_desktop_config.json")) {
+    return { name: "Claude Desktop", app: "Claude" };
+  }
+  if (normalized.includes("/.codex/")) return { name: "Codex", app: "Codex" };
+  if (normalized.includes("/.cursor/")) return { name: "Cursor", app: "Cursor" };
+  if (normalized.endsWith(".mcp.json")) return { name: "Claude Code" };
+  return { name: "Agent 客户端" };
+}
+
+async function restartClient(app: string): Promise<void> {
+  if (process.platform !== "darwin") {
+    throw new CoreFailure(
+      "RESTART_UNSUPPORTED",
+      "当前系统不支持自动重启客户端，请手动退出后重新打开。"
+    );
+  }
+  await interactive("/usr/bin/osascript", ["-e", `quit app "${app}"`]);
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  await interactive("/usr/bin/open", ["-a", app]);
 }
 
 /**
