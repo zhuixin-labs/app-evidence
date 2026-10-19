@@ -753,7 +753,7 @@ export class SqliteStore implements Store {
         now,
         JSON.stringify({
           code: "ANALYSIS_INTERRUPTED",
-          message: "MCP 进程在分析完成前退出。"
+          message: "The MCP process exited before analysis completed."
         })
       );
     return Number((result as { changes?: number }).changes ?? 0);
@@ -1004,7 +1004,7 @@ export class JsonStore implements Store {
       run.updatedAt = now;
       run.error = {
         code: "ANALYSIS_INTERRUPTED",
-        message: "MCP 进程在分析完成前退出。"
+        message: "The MCP process exited before analysis completed."
       };
       count += 1;
     }

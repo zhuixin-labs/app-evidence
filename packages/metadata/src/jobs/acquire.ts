@@ -41,10 +41,10 @@ function redact(value: string): string {
 function classifyIpatoolFailure(output: string): CoreFailure {
   const text = output.toLowerCase();
   if (text.includes("passphrase") || text.includes("unlock")) {
-    return new CoreFailure("KEYCHAIN_LOCKED", "本地 keychain 需要解锁。");
+    return new CoreFailure("KEYCHAIN_LOCKED", "The local keychain is locked.");
   }
   if (text.includes("license is required") || text.includes("license required")) {
-    return new CoreFailure("LICENSE_REQUIRED", "当前 Apple 账号没有这个应用的商店许可。");
+    return new CoreFailure("LICENSE_REQUIRED", "This Apple account has no store license for the app.");
   }
   if (
     text.includes("credential") ||
@@ -52,9 +52,9 @@ function classifyIpatoolFailure(output: string): CoreFailure {
     text.includes("login") ||
     text.includes("unauthorized")
   ) {
-    return new CoreFailure("AUTH_REQUIRED", "ipatool 尚未登录，或登录态已失效。");
+    return new CoreFailure("AUTH_REQUIRED", "ipatool is not signed in, or the session expired.");
   }
-  return new CoreFailure("STORE_AUTH_FAILED", "App Store 请求失败，请检查账号、条款和网络。");
+  return new CoreFailure("STORE_AUTH_FAILED", "App Store request failed; check the account, terms and network.");
 }
 
 export class AcquireJobRunner {
@@ -69,9 +69,9 @@ export class AcquireJobRunner {
 
   createAcquireJob(targetId: string): JobRecord {
     const target = this.store.getTarget(targetId);
-    if (!target) fail("TARGET_NOT_FOUND", "Target 不存在。");
+    if (!target) fail("TARGET_NOT_FOUND", "Target not found.");
     if (target.targetRef.sourceId !== "app-store") {
-      fail("SOURCE_NOT_ENABLED", "当前只实现 App Store 的 acquire job。");
+      fail("SOURCE_NOT_ENABLED", "Only the App Store acquire job is implemented.");
     }
 
     const job: JobRecord = {
@@ -102,10 +102,10 @@ export class AcquireJobRunner {
     this.patchJob(job, {
       status: "cancelled",
       errorCode: "JOB_CANCELLED",
-      errorMessage: "任务已取消。",
+      errorMessage: "Job cancelled.",
       finishedAt: now()
     });
-    this.log(job, "warn", "任务已取消。");
+    this.log(job, "warn", "Job cancelled.");
     return job;
   }
 
@@ -118,7 +118,7 @@ export class AcquireJobRunner {
         errorCode: undefined,
         errorMessage: undefined
       });
-      this.log(job, "info", "检查 ipatool 登录状态。");
+      this.log(job, "info", "Checking ipatool sign-in state.");
       if (String(job.status) === "cancelled") return;
 
       const auth = await this.runProcess(
@@ -133,7 +133,7 @@ export class AcquireJobRunner {
       }
       const authJson = safeJson(auth.stdout);
       if (authJson && authJson.success === false) {
-        throw new CoreFailure("AUTH_REQUIRED", "ipatool 尚未登录。");
+        throw new CoreFailure("AUTH_REQUIRED", "ipatool is not signed in.");
       }
 
       this.patchJob(job, {
@@ -142,7 +142,7 @@ export class AcquireJobRunner {
         errorCode: undefined,
         errorMessage: undefined
       });
-      this.log(job, "info", "开始获取 IPA。");
+      this.log(job, "info", "Starting IPA acquisition.");
       if (String(job.status) === "cancelled") return;
 
       const tempPath = path.join(this.workspace.root, "tmp", `${job.id}.ipa`);
@@ -179,11 +179,11 @@ export class AcquireJobRunner {
         throw classifyIpatoolFailure(`${download.stdout}\n${download.stderr}`);
       }
       if (!fs.existsSync(tempPath) || fs.statSync(tempPath).size === 0) {
-        throw new CoreFailure("ARTIFACT_INVALID", "ipatool 没有产出有效的 IPA 文件。");
+        throw new CoreFailure("ARTIFACT_INVALID", "ipatool did not produce a valid IPA file.");
       }
 
       this.patchJob(job, { status: "inspecting", progress: 80 });
-      this.log(job, "info", "计算哈希并登记 artifact。");
+      this.log(job, "info", "Hashing and registering the artifact.");
 
       const sha256 = await hashFile(tempPath);
       const sizeBytes = fs.statSync(tempPath).size;
@@ -233,7 +233,7 @@ export class AcquireJobRunner {
         },
         finishedAt: now()
       });
-      this.log(job, "info", "IPA 已登记，可以继续运行分析能力。", {
+      this.log(job, "info", "IPA registered; analysis capabilities can run.", {
         sha256,
         sizeBytes
       });
@@ -313,7 +313,7 @@ export class AcquireJobRunner {
         reject(
           new CoreFailure(
             "TOOL_MISSING",
-            `无法启动 ipatool：${error instanceof Error ? error.message : String(error)}`
+            `Could not start ipatool: ${error instanceof Error ? error.message : String(error)}`
           )
         );
         return;
@@ -349,7 +349,7 @@ export class AcquireJobRunner {
         reject(
           new CoreFailure(
             "TOOL_MISSING",
-            `无法启动 ipatool：${error.message}`
+            `Could not start ipatool: ${error.message}`
           )
         );
       });
@@ -360,7 +360,7 @@ export class AcquireJobRunner {
         clearTimeout(timer);
         this.active.delete(job.id);
         if (timedOut) {
-          reject(new CoreFailure("PROCESS_TIMEOUT", "ipatool 执行超时。"));
+          reject(new CoreFailure("PROCESS_TIMEOUT", "ipatool timed out."));
           return;
         }
         resolve({

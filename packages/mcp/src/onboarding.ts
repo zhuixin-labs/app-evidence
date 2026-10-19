@@ -41,6 +41,6 @@ export function setupResponse(status: SetupStatus, input: Record<string, unknown
     setup: status,
     next_tool: status.next_tool,
     resume: { tool: "analyze_app", arguments: input },
-    nextAction: "Agent 应按 next_tool 继续准备；ready 后用 resume.arguments 重发 analyze_app。无需用户重复需求；不要向用户索取凭据。"
+    nextAction: "Follow next_tool to finish setup; once ready, resend analyze_app with resume.arguments. Do not ask the user to repeat the request or for credentials."
   };
 }

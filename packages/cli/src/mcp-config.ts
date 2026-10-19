@@ -20,7 +20,7 @@ function object(value: unknown): Record<string, any> {
 export function writeMcpConfig(filename: string, server: ServerConfig): void {
   const extension = path.extname(filename).toLowerCase();
   if (![".json", ".toml"].includes(extension)) {
-    throw new Error("--write-config 只支持 .json 或 .toml 文件。");
+    throw new Error("--write-config accepts only .json or .toml files.");
   }
   const original = fs.existsSync(filename) ? fs.readFileSync(filename, "utf8") : undefined;
   const config = object(original?.trim()

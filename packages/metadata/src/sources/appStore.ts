@@ -45,7 +45,7 @@ export class AppStoreProvider implements SourceProvider {
   async resolve(input: string): Promise<ResolveOutput> {
     const parsed = parseAppStoreId(input);
     if (!parsed) {
-      fail("UNSUPPORTED_SOURCE", "这不是可识别的 App Store 链接或 App ID。");
+      fail("UNSUPPORTED_SOURCE", "Not a recognized App Store link or app ID.");
     }
 
     const url = new URL("https://itunes.apple.com/lookup");
@@ -61,12 +61,12 @@ export class AppStoreProvider implements SourceProvider {
     } catch (error) {
       fail(
         "NETWORK_ERROR",
-        "无法访问 iTunes Lookup，请检查网络或代理设置。",
+        "Could not reach iTunes Lookup; check the network or proxy settings.",
         error instanceof Error ? error.message : String(error)
       );
     }
     if (!response.ok) {
-      fail("NETWORK_ERROR", `iTunes Lookup 返回 HTTP ${response.status}。`);
+      fail("NETWORK_ERROR", `iTunes Lookup returned HTTP ${response.status}.`);
     }
 
     const lookup = (await response.json()) as ITunesLookup;
@@ -74,7 +74,7 @@ export class AppStoreProvider implements SourceProvider {
     if (!item) {
       fail(
         "APP_NOT_FOUND",
-        `在 App Store ${parsed.country.toUpperCase()} 没有找到 ID ${parsed.appId}。`
+        `App ID ${parsed.appId} was not found in the ${parsed.country.toUpperCase()} App Store.`
       );
     }
 

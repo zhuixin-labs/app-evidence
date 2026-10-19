@@ -83,7 +83,7 @@ export class VersionComparisonService {
     options: { force?: boolean } = {}
   ): Promise<CompareVersionsResult> {
     if (leftArtifactId === rightArtifactId) {
-      throw new CoreFailure("INVALID_COMPARISON", "两个版本不能是同一个 artifact。");
+      throw new CoreFailure("INVALID_COMPARISON", "Both versions cannot be the same artifact.");
     }
     let detail = await this.analysis.detail(targetId);
     const left = this.findArtifact(detail, leftArtifactId);
@@ -159,7 +159,7 @@ export class VersionComparisonService {
     if (!artifact) {
       throw new CoreFailure(
         "ARTIFACT_NOT_FOUND",
-        `Target 中不存在 artifact：${artifactId}`
+        `Artifact not found in target: ${artifactId}`
       );
     }
     return artifact;

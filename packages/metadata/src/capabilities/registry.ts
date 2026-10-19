@@ -41,7 +41,7 @@ const DEFINITIONS: Definition[] = [
   {
     id: "inspect:ipa",
     label: "Inspect IPA",
-    description: "ZIP CRC、Info.plist、Mach-O 架构与 cryptid。",
+    description: "ZIP CRC, Info.plist, Mach-O architectures and cryptid.",
     targetPlatforms: ["ios"],
     packageFormats: ["ipa"],
     requiresArtifact: true,
@@ -50,7 +50,7 @@ const DEFINITIONS: Definition[] = [
   {
     id: "extract:app",
     label: "Extract app",
-    description: "安全解包 .app、资源与嵌套 Framework。",
+    description: "Safely unpack the .app bundle, resources and nested frameworks.",
     targetPlatforms: ["ios"],
     packageFormats: ["ipa"],
     requiresArtifact: true,
@@ -59,7 +59,7 @@ const DEFINITIONS: Definition[] = [
   {
     id: "javascript:analyze",
     label: "Analyze JS",
-    description: "对解包应用中的 uni-app / WebView 业务脚本做静态分析。",
+    description: "Statically analyze uni-app and WebView business scripts in the unpacked app.",
     targetPlatforms: ["ios"],
     packageFormats: ["ipa"],
     requiresArtifact: true,
@@ -68,7 +68,7 @@ const DEFINITIONS: Definition[] = [
   {
     id: "native:inspect",
     label: "Inspect native",
-    description: "函数清单、字符串、交叉引用与证据索引。",
+    description: "Function inventory, strings, cross-references and an evidence index.",
     targetPlatforms: ["ios"],
     packageFormats: ["ipa"],
     requiresArtifact: true,
@@ -77,7 +77,7 @@ const DEFINITIONS: Definition[] = [
   {
     id: "native:search",
     label: "Search native",
-    description: "按函数名或字符串搜索原生程序，为反编译提供准确符号。",
+    description: "Search native code by function name or string to find exact symbols for decompilation.",
     targetPlatforms: ["ios"],
     packageFormats: ["ipa"],
     requiresArtifact: true,
@@ -87,7 +87,7 @@ const DEFINITIONS: Definition[] = [
   {
     id: "native:decompile",
     label: "Decompile",
-    description: "指定函数名或地址，返回 Ghidra 伪代码。",
+    description: "Return Ghidra pseudocode for a function name or address.",
     targetPlatforms: ["ios"],
     packageFormats: ["ipa"],
     requiresArtifact: true,
@@ -97,49 +97,49 @@ const DEFINITIONS: Definition[] = [
   {
     id: "generate:report",
     label: "Generate report",
-    description: "把 Target、artifact 检查结果和分析证据整理成 Markdown。",
+    description: "Turn the target, artifact checks and analysis evidence into Markdown.",
     targetPlatforms: ALL_TARGETS,
     builtIn: true
   },
   {
     id: "inspect:pe",
     label: "Inspect PE",
-    description: "PE 头、架构、节区、导入表与 .NET 线索。",
+    description: "PE headers, architectures, sections, imports and .NET hints.",
     targetPlatforms: ["windows"],
     packageFormats: ["exe"],
     requiresArtifact: true,
     available: false,
-    reason: "Windows Target Provider 待 v1.1"
+    reason: "Windows target provider planned for v1.1"
   },
   {
     id: "inspect:msix",
     label: "Inspect MSIX",
-    description: "AppxManifest、Identity、架构与签名状态。",
+    description: "AppxManifest, identity, architectures and signature state.",
     targetPlatforms: ["windows"],
     packageFormats: ["msix", "appx"],
     requiresArtifact: true,
     available: false,
-    reason: "Windows Target Provider 待 v1.1"
+    reason: "Windows target provider planned for v1.1"
   },
   {
     id: "inspect:msi",
     label: "Inspect MSI",
-    description: "ProductCode、UpgradeCode、文件/注册表表。",
+    description: "ProductCode, UpgradeCode, file and registry tables.",
     targetPlatforms: ["windows"],
     packageFormats: ["msi"],
     requiresArtifact: true,
     available: false,
-    reason: "Windows Target Provider 待 v1.1"
+    reason: "Windows target provider planned for v1.1"
   },
   {
     id: "signature:check",
     label: "Signature check",
-    description: "Authenticode / MSIX 签名与证书链。",
+    description: "Authenticode and MSIX signatures with certificate chain.",
     targetPlatforms: ["windows"],
     packageFormats: ["exe", "msi", "msix", "appx"],
     requiresArtifact: true,
     available: false,
-    reason: "Windows Target Provider 待 v1.1"
+    reason: "Windows target provider planned for v1.1"
   }
 ];
 
@@ -174,21 +174,21 @@ export class CapabilityRegistry {
     let available = globallyAvailable;
     let reason: string | undefined;
     if (!hostSupported) {
-      reason = `此能力不支持 ${this.config.hostPlatform} Host；需要 ${hostPlatforms.join(" / ")}。`;
+      reason = `This capability does not support a ${this.config.hostPlatform} host; it needs ${hostPlatforms.join(" / ")}.`;
     } else if (!globallyAvailable) {
       reason = definition.requiresRea
-        ? `分析引擎不可用；检查 APPTRACE_ENGINE_PATH（当前 ${this.config.enginePath}）。`
+        ? `Analysis engine unavailable; check APPTRACE_ENGINE_PATH (currently ${this.config.enginePath}).`
         : definition.reason;
     }
 
     const { target, artifact } = context;
     if (available && target && !definition.targetPlatforms.includes(target.targetRef.platform)) {
       available = false;
-      reason = `此能力用于 ${definition.targetPlatforms.join(" / ")} Target，当前 Target 是 ${target.targetRef.platform}。`;
+      reason = `This capability targets ${definition.targetPlatforms.join(" / ")}; the current target is ${target.targetRef.platform}.`;
     }
     if (available && target && definition.requiresArtifact && !artifact) {
       available = false;
-      reason = "请先获取并登记 artifact。";
+      reason = "Acquire and register an artifact first.";
     }
     if (
       available &&
@@ -197,9 +197,9 @@ export class CapabilityRegistry {
       !definition.packageFormats.includes(artifact.packageFormat)
     ) {
       available = false;
-      reason = `当前 artifact 是 ${artifact.packageFormat.toUpperCase()}；此能力只支持 ${definition.packageFormats
+      reason = `The current artifact is ${artifact.packageFormat.toUpperCase()}; this capability supports ${definition.packageFormats
         .map((format) => format.toUpperCase())
-        .join(" / ")}。`;
+        .join(" / ")}.`;
     }
 
     return {

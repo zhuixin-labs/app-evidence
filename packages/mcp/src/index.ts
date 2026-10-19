@@ -37,9 +37,9 @@ function errorResult(error: unknown) {
         );
   const nextAction =
     failure.code === "AUTH_REQUIRED" || failure.code === "KEYCHAIN_LOCKED"
-      ? "调用 open_login，随后通过 get_setup_status 等待，再恢复原请求。"
+      ? "Call open_login, poll get_setup_status, then resume the original request."
       : failure.code === "LICENSE_REQUIRED"
-        ? "请先在同一 Apple 账号的 App Store 获取该应用。"
+        ? "Get the app from the App Store with the same Apple account first."
         : undefined;
   return {
     isError: true,
@@ -146,7 +146,7 @@ export async function startMcpServer(
     async (input) => {
       if (!input.source && !input.target_id) {
         return errorResult(
-          new CoreFailure("SOURCE_REQUIRED", "请提供 source 或 target_id。")
+          new CoreFailure("SOURCE_REQUIRED", "Provide source or target_id.")
         );
       }
       try {
@@ -244,7 +244,7 @@ export async function startMcpServer(
           error: run.error,
           nextAction:
             run.status === "running"
-              ? "调用 get_analysis_run 继续等待或读取结果。"
+              ? "Call get_analysis_run to wait or read the result."
               : undefined
         });
       } catch (error) {
@@ -271,7 +271,7 @@ export async function startMcpServer(
         return stored
           ? textResult(stored)
           : errorResult(
-              new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "分析运行不存在或已经超时。")
+              new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "Analysis run not found or timed out.")
             );
       }
       await Promise.race([

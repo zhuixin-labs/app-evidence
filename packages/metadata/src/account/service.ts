@@ -133,7 +133,7 @@ export class AccountService {
     }
 
     const executable = resolveTool(this.config.ipatoolPath);
-    if (!executable) return this.cacheStatus({ authenticated: false, keychain: "unknown", checkedAt: now(), errorCode: "TOOL_NOT_INSTALLED", message: "需要先安装 ipatool。" });
+    if (!executable) return this.cacheStatus({ authenticated: false, keychain: "unknown", checkedAt: now(), errorCode: "TOOL_NOT_INSTALLED", message: "ipatool must be installed first." });
     const result = await runCommand(
       executable,
       ["auth", "info", "--format", "json", "--non-interactive"],
@@ -146,7 +146,7 @@ export class AccountService {
         keychain: "unknown",
         checkedAt: now(),
         errorCode: "AUTH_CHECK_TIMEOUT",
-        message: "检查 Apple 账号超时。"
+        message: "Timed out while checking the Apple account."
       });
     }
     if (result.code !== 0) {
@@ -158,8 +158,8 @@ export class AccountService {
         checkedAt: now(),
         errorCode: locked || missingAccount ? undefined : "AUTH_CHECK_FAILED",
         message: locked
-          ? "本地 keychain 已锁定，请在客户端登录终端解锁。"
-          : missingAccount ? "尚未登录 Apple 账号。" : "账号状态检查失败，请重试；不能据此判断是否已登录。"
+          ? "The local keychain is locked; unlock it in the sign-in terminal."
+          : missingAccount ? "No Apple account is signed in." : "Account status check failed; retry. This does not prove the account is signed out."
       });
     }
 
@@ -172,7 +172,7 @@ export class AccountService {
         keychain: "unknown",
         checkedAt: now(),
         errorCode: "AUTH_CHECK_FAILED",
-        message: "ipatool 未返回有效的账号状态。"
+        message: "ipatool did not return a valid account state."
       });
     }
     return this.cacheStatus({
@@ -181,7 +181,7 @@ export class AccountService {
       name: account.name,
       keychain: "unlocked",
       checkedAt: now(),
-      message: "Apple 账号已连接。"
+      message: "Apple account connected."
     });
   }
 
@@ -215,10 +215,10 @@ export class AccountService {
         checkedAt: now(),
         truncated: false,
         error: result.timedOut
-          ? "读取商店许可超时。"
+          ? "Timed out reading store entitlements."
           : locked
-            ? "本地 keychain 已锁定，请先登录/解锁。"
-            : "无法读取已拥有的应用，请先登录 Apple 账号。"
+            ? "The local keychain is locked; sign in or unlock first."
+            : "Could not read owned apps; sign in to an Apple account first."
       };
       this.entitlementsCache = { value, at: Date.now() };
       return value;
@@ -245,7 +245,7 @@ export class AccountService {
       return {
         status: "unknown",
         checkedAt: now(),
-        message: status.message ?? "请先登录 Apple 账号。"
+        message: status.message ?? "Sign in to an Apple account first."
       };
     }
 
@@ -267,20 +267,20 @@ export class AccountService {
         status: "owned",
         checkedAt: now(),
         entitlement,
-        message: "该 Apple 账号拥有此应用的商店许可。"
+        message: "This Apple account owns a store license for the app."
       };
     }
     if (list.truncated) {
       return {
         status: "unknown",
         checkedAt: now(),
-        message: `已检查前 ${PAGE_SIZE} 个应用，可能还有更多；请在 iPhone App Store 确认。`
+        message: `Checked the first ${PAGE_SIZE} apps; there may be more. Confirm in the App Store on your iPhone.`
       };
     }
     return {
       status: "not_owned",
       checkedAt: now(),
-      message: "当前账号没有找到该应用的商店许可。"
+      message: "No store license for this app was found on the current account."
     };
   }
 

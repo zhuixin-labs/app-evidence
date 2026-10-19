@@ -23,19 +23,19 @@ export class EngineCapabilityRunner {
     artifactId?: string
   ): JobRecord {
     const target = this.store.getTarget(targetId);
-    if (!target) fail("TARGET_NOT_FOUND", "Target 不存在。");
+    if (!target) fail("TARGET_NOT_FOUND", "Target not found.");
     const artifacts = this.store.listArtifacts(targetId);
     const artifact = artifactId
       ? artifacts.find((item) => item.id === artifactId)
       : artifacts.find((item) => item.isCurrent) ?? artifacts[0];
-    if (!artifact) fail("ARTIFACT_REQUIRED", "请先获取 artifact。");
+    if (!artifact) fail("ARTIFACT_REQUIRED", "Acquire an artifact first.");
     const capability = this.registry.get(requestedCapabilityId, {
       target,
       artifact
     });
     if (!capability) fail("CAPABILITY_NOT_FOUND", requestedCapabilityId);
     if (!capability.available) {
-      fail("CAPABILITY_UNAVAILABLE", capability.reason ?? "能力不可用。");
+      fail("CAPABILITY_UNAVAILABLE", capability.reason ?? "Capability unavailable.");
     }
     const job: JobRecord = {
       id: randomUUID(),
@@ -96,7 +96,7 @@ export class EngineCapabilityRunner {
     this.patch(job, {
       status: "cancelled",
       errorCode: "JOB_CANCELLED",
-      errorMessage: "任务已取消。",
+      errorMessage: "Job cancelled.",
       finishedAt: new Date().toISOString()
     });
     return job;

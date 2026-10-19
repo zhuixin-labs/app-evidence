@@ -156,7 +156,7 @@ export class CoreServer {
         const { resolutionId } = createTargetSchema.parse(payload);
         const cached = this.resolutions.get(resolutionId);
         if (!cached) {
-          fail("RESOLUTION_EXPIRED", "解析结果已过期，请重新解析链接。");
+          fail("RESOLUTION_EXPIRED", "Resolution expired; resolve the link again.");
         }
 
         const existing = this.store.findTarget(
@@ -195,7 +195,7 @@ export class CoreServer {
       case CHANNELS.targetsGet: {
         const { targetId } = targetIdSchema.parse(payload);
         const target = this.store.getTarget(targetId);
-        if (!target) fail("TARGET_NOT_FOUND", "Target 不存在。");
+        if (!target) fail("TARGET_NOT_FOUND", "Target not found.");
         return {
           target,
           artifacts: this.store.listArtifacts(target.id),
@@ -208,7 +208,7 @@ export class CoreServer {
           createJobSchema.parse(payload);
         if (capabilityId === "acquire:app-store") {
           if (input || artifactId) {
-            fail("INVALID_INPUT", "acquire:app-store 不接受分析输入。");
+            fail("INVALID_INPUT", "acquire:app-store does not accept analysis input.");
           }
           return this.runner.createAcquireJob(targetId);
         }
@@ -223,14 +223,14 @@ export class CoreServer {
       case CHANNELS.jobsGet: {
         const { jobId } = jobIdSchema.parse(payload);
         const job = this.store.getJob(jobId);
-        if (!job) fail("JOB_NOT_FOUND", "Job 不存在。");
+        if (!job) fail("JOB_NOT_FOUND", "Job not found.");
         return { job, events: this.store.listEvents(job.id) };
       }
 
       case CHANNELS.jobsCancel: {
         const { jobId } = jobIdSchema.parse(payload);
         const existing = this.store.getJob(jobId);
-        if (!existing) fail("JOB_NOT_FOUND", "Job 不存在。");
+        if (!existing) fail("JOB_NOT_FOUND", "Job not found.");
         const job =
           existing.capabilityId === "acquire:app-store"
             ? this.runner.cancel(jobId)
@@ -242,7 +242,7 @@ export class CoreServer {
         const { targetId } = capabilitiesListSchema.parse(payload) ?? {};
         if (!targetId) return this.capabilityRegistry.list();
         const target = this.store.getTarget(targetId);
-        if (!target) fail("TARGET_NOT_FOUND", "Target 不存在。");
+        if (!target) fail("TARGET_NOT_FOUND", "Target not found.");
         const artifacts = this.store.listArtifacts(target.id);
         const artifact =
           artifacts.find((item) => item.isCurrent) ?? artifacts[0];
@@ -298,7 +298,7 @@ export class CoreServer {
       }
 
       default:
-        fail("UNKNOWN_CHANNEL", `未知 IPC 频道：${channel}`);
+        fail("UNKNOWN_CHANNEL", `Unknown IPC channel: ${channel}`);
     }
   }
 

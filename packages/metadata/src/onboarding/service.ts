@@ -30,7 +30,7 @@ export function trackInstallationChild(config: CoreConfig, pid: number): void {
 export async function runInstallation(config: CoreConfig, install: () => Promise<void>, token?: string): Promise<void> {
   const store = installStore(config);
   const operation = token ? store.current() : store.acquire();
-  if (!operation || (token && operation.token !== token)) throw new CoreFailure("SETUP_BUSY", "环境安装已在进行，请查询准备状态。");
+  if (!operation || (token && operation.token !== token)) throw new CoreFailure("SETUP_BUSY", "Environment setup is already running; query the setup status.");
   store.adopt(operation.token, process.pid);
   try {
     await install();
@@ -89,22 +89,22 @@ export class OnboardingService {
           phase = /ipatool/.test(latest) ? "installing_ipatool" : /jdk|temurin/i.test(latest) ? "installing_java" : /ghidra/i.test(latest) ? "installing_ghidra" : phase;
         } finally { fs.closeSync(file); }
       }
-      return { state: "installing", message: "正在准备分析环境，用户无需运行命令。", updatedAt, phase, logPath, next_tool: "get_setup_status" };
+      return { state: "installing", message: "Preparing the analysis environment; no command needed from the user.", updatedAt, phase, logPath, next_tool: "get_setup_status" };
     }
     const missingTools = missingSetupTools(this.config);
     if (missingTools.length) {
       const last = store.last();
       if (current || last?.state === "failed") {
-        return { state: "failed", message: "环境安装失败或中断。请检查安装日志后通过 prepare_environment(retry=true) 重试。", updatedAt, missingTools, errorCode: current ? "PROCESS_INTERRUPTED" : last?.errorCode, logPath: path.join(store.root, `${current?.token ?? last?.token}.log`), next_tool: "prepare_environment" };
+        return { state: "failed", message: "Environment setup failed or was interrupted. Check the install log, then retry with prepare_environment(retry=true).", updatedAt, missingTools, errorCode: current ? "PROCESS_INTERRUPTED" : last?.errorCode, logPath: path.join(store.root, `${current?.token ?? last?.token}.log`), next_tool: "prepare_environment" };
       }
-      return { state: "tools_missing", message: "需要准备分析工具，Agent 可以自动安装。", missingTools, updatedAt, next_tool: "prepare_environment" };
+      return { state: "tools_missing", message: "Analysis tools are missing; the agent can install them automatically.", missingTools, updatedAt, next_tool: "prepare_environment" };
     }
-    if (!requireAccount) return { state: "ready", message: "本地分析工具已准备好。", updatedAt };
+    if (!requireAccount) return { state: "ready", message: "Local analysis tools are ready.", updatedAt };
     const account = await new AccountService(this.config).status(true, timeoutMs);
-    if (account.authenticated) return { state: "ready", message: "环境与 Apple 登录已就绪，继续原分析请求。", updatedAt };
-    if (loginWindowStatus().pending) return { state: "login_pending", message: "请在已打开的 AppTrace 登录窗口输入账号、密码或验证码；完成后 Agent 会继续。", updatedAt, next_tool: "get_setup_status" };
-    if (account.errorCode) return { state: "failed", message: account.message ?? "账号状态检查失败。", errorCode: account.errorCode, updatedAt, next_tool: "get_setup_status" };
-    return { state: account.keychain === "locked" ? "keychain_locked" : "login_required", message: "需要用户在本地窗口完成 Apple 登录或解锁，Agent 可以打开窗口。", updatedAt, next_tool: "open_login" };
+    if (account.authenticated) return { state: "ready", message: "Environment and Apple sign-in are ready; resume the original analysis.", updatedAt };
+    if (loginWindowStatus().pending) return { state: "login_pending", message: "Enter your account, password or verification code in the open AppTrace sign-in window; the agent resumes when done.", updatedAt, next_tool: "get_setup_status" };
+    if (account.errorCode) return { state: "failed", message: account.message ?? "Account status check failed.", errorCode: account.errorCode, updatedAt, next_tool: "get_setup_status" };
+    return { state: account.keychain === "locked" ? "keychain_locked" : "login_required", message: "The user must sign in or unlock locally; the agent can open the window.", updatedAt, next_tool: "open_login" };
   }
 
   async prepare(retry = false): Promise<SetupStatus> {
@@ -113,11 +113,11 @@ export class OnboardingService {
     if (status.state === "ready") return status;
     if (status.state === "failed" && !retry) return status;
     if (!this.cliPath || !fs.existsSync(this.cliPath)) {
-      throw new CoreFailure("SETUP_ENTRY_MISSING", "请由 Agent 执行 apptrace setup --write-config <客户端配置路径>，然后重新加载 MCP。");
+      throw new CoreFailure("SETUP_ENTRY_MISSING", "Run apptrace setup --write-config <client config path> through the agent, then reload MCP.");
     }
     const store = installStore(this.config);
     const operation = store.acquire();
-    if (!operation) return { state: "installing", message: "另一个准备请求正在启动。", updatedAt: new Date().toISOString(), next_tool: "get_setup_status" };
+    if (!operation) return { state: "installing", message: "Another setup request is starting.", updatedAt: new Date().toISOString(), next_tool: "get_setup_status" };
     let output: number | undefined;
     try {
       output = fs.openSync(path.join(store.root, `${operation.token}.log`), "a", 0o600);
@@ -130,7 +130,7 @@ export class OnboardingService {
       store.finish(operation.token, "failed", "SETUP_START_FAILED");
       throw error;
     } finally { if (output !== undefined) fs.closeSync(output); }
-    return { state: "installing", message: "已启动环境准备。", updatedAt: new Date().toISOString(), next_tool: "get_setup_status" };
+    return { state: "installing", message: "Environment preparation started.", updatedAt: new Date().toISOString(), next_tool: "get_setup_status" };
   }
 
   async openLogin(): Promise<SetupStatus> {
@@ -140,6 +140,6 @@ export class OnboardingService {
     const executable = resolveTool(this.config.ipatoolPath);
     if (!executable) return this.status();
     await openLoginWindow(executable);
-    return { state: "login_pending", message: "已打开本地 Apple 登录窗口。请只在窗口中输入凭据，Agent 会检查状态并继续原任务。", updatedAt: new Date().toISOString(), next_tool: "get_setup_status" };
+    return { state: "login_pending", message: "A local Apple sign-in window is open. Enter credentials only there; the agent checks status and resumes.", updatedAt: new Date().toISOString(), next_tool: "get_setup_status" };
   }
 }

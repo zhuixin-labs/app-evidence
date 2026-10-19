@@ -64,7 +64,7 @@ apptrace setup --write-config ~/.codex/config.toml --install-skill
 Your agent can run these commands for you. Reload the client's MCP servers after
 connection. These onboarding changes are a local, unpublished candidate; the
 published 0.2.0 release still has the Windows issues documented in
-[Windows first-use verification](docs/Windows首次使用验收.md).
+[Windows first-use verification](docs/windows-first-use.md).
 
 **2 · Give your agent an app to analyze**
 
