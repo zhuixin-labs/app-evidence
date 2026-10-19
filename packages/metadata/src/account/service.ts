@@ -6,6 +6,7 @@ import type {
 } from "@zhuixin/shared";
 import type { CoreConfig } from "../config.js";
 import { runCommand } from "../process/run.js";
+import { resolveTool } from "../tools.js";
 
 const STATUS_TTL_MS = 5_000;
 const ENTITLEMENTS_TTL_MS = 30_000;
@@ -110,7 +111,7 @@ function accountFromPayload(payload: unknown): { email?: string; name?: string }
       ? [firstName, lastName].filter(Boolean).join(" ")
       : undefined);
   return {
-    email: typeof email === "string" ? maskEmail(email) : undefined,
+    email: typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? maskEmail(email) : undefined,
     name: typeof name === "string" ? name : undefined
   };
 }
@@ -126,15 +127,17 @@ export class AccountService {
     this.entitlementsCache = undefined;
   }
 
-  async status(force = false): Promise<AccountStatus> {
+  async status(force = false, timeoutMs = 60_000): Promise<AccountStatus> {
     if (!force && this.statusCache && Date.now() - this.statusCache.at < STATUS_TTL_MS) {
       return this.statusCache.value;
     }
 
+    const executable = resolveTool(this.config.ipatoolPath);
+    if (!executable) return this.cacheStatus({ authenticated: false, keychain: "unknown", checkedAt: now(), errorCode: "TOOL_NOT_INSTALLED", message: "需要先安装 ipatool。" });
     const result = await runCommand(
-      this.config.ipatoolPath,
+      executable,
       ["auth", "info", "--format", "json", "--non-interactive"],
-      { timeoutMs: 60_000 }
+      { timeoutMs }
     );
     const combined = `${result.stdout}\n${result.stderr}`;
     if (result.timedOut) {
@@ -142,32 +145,36 @@ export class AccountService {
         authenticated: false,
         keychain: "unknown",
         checkedAt: now(),
+        errorCode: "AUTH_CHECK_TIMEOUT",
         message: "检查 Apple 账号超时。"
       });
     }
     if (result.code !== 0) {
-      const locked = /passphrase|unlock/i.test(combined);
+      const locked = /passphrase|unlock|keyring.*locked/i.test(combined);
+      const missingAccount = /not logged in|not authenticated|no account|not signed in|failed to get account|account.*not found/i.test(combined);
       return this.cacheStatus({
         authenticated: false,
         keychain: locked ? "locked" : "unknown",
         checkedAt: now(),
+        errorCode: locked || missingAccount ? undefined : "AUTH_CHECK_FAILED",
         message: locked
           ? "本地 keychain 已锁定，请在客户端登录终端解锁。"
-          : "尚未登录 Apple 账号。"
+          : missingAccount ? "尚未登录 Apple 账号。" : "账号状态检查失败，请重试；不能据此判断是否已登录。"
       });
     }
 
     const payload = parseJson(result.stdout);
     const record = asRecord(payload);
-    if (record?.success === false) {
+    const account = accountFromPayload(payload);
+    if (!record || record.success === false || !account.email) {
       return this.cacheStatus({
         authenticated: false,
         keychain: "unknown",
         checkedAt: now(),
-        message: "ipatool 返回未登录状态。"
+        errorCode: "AUTH_CHECK_FAILED",
+        message: "ipatool 未返回有效的账号状态。"
       });
     }
-    const account = accountFromPayload(payload);
     return this.cacheStatus({
       authenticated: true,
       email: account.email,

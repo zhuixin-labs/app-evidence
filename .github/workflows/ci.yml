@@ -27,3 +27,25 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm test:mcp
+      - name: Pack Windows first-use candidates
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/apptrace-packs" | Out-Null
+          pnpm -r pack --pack-destination "$env:RUNNER_TEMP/apptrace-packs"
+      - name: Verify Windows first-use installation
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 20
+        run: node scripts/verify-windows-first-use.mjs --packages "$env:RUNNER_TEMP/apptrace-packs"
+      - name: Upload Windows first-use evidence
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-first-use
+          path: |
+            ${{ runner.temp }}/apptrace first use */*.log
+            ${{ runner.temp }}/apptrace first use */results.json
+            ${{ runner.temp }}/apptrace first use */06-mcp.json
+            ${{ runner.temp }}/apptrace first use */04-agent-install.json
+            ${{ runner.temp }}/apptrace first use */roaming/AppTrace/workspace/.onboarding/install/*.log

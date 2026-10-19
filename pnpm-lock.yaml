@@ -38,6 +38,9 @@ importers:
       rea-agents:
         specifier: 6.4.0
         version: 6.4.0
+      smol-toml:
+        specifier: ^1.9.0
+        version: 1.9.0
     devDependencies:
       tsup:
         specifier: ^8.5.0

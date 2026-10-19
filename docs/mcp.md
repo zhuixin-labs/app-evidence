@@ -23,7 +23,20 @@ apptrace setup --write-config ~/.codex/config.toml
 
 TOML paths get `[mcp_servers.apptrace]`; JSON paths get an `mcpServers` object.
 Restart the client afterwards, then ask it for its tool list — `/mcp` in Claude Code —
-and you should see twelve `apptrace` tools.
+and you should see fifteen `apptrace` tools.
+
+For Codex, add `--install-skill` to install the accompanying agent instructions.
+`analyze_app` automatically starts missing tool installation and returns
+`awaiting_setup` with complete `resume.arguments`. Follow `next_tool`, then resend
+the saved arguments when ready. `prepare_environment` starts/reuses installation;
+`get_setup_status(wait_seconds=20)` waits for tools. For Apple sign-in, `open_login`
+opens a separate Windows terminal and
+`get_setup_status(wait_seconds=20, require_account=true)` checks readiness.
+Only the user enters credentials in that terminal; MCP never receives its output.
+
+Existing configuration is merged, with a sibling `.<id>.bak` backup. Other servers
+and AppTrace-specific options are retained. TOML comments and formatting remain
+in the backup; malformed configuration is rejected without overwriting it.
 
 ### What gets written
 
@@ -33,7 +46,7 @@ Codex (`config.toml`):
 [mcp_servers.apptrace]
 command = "/opt/homebrew/bin/node"
 args = ["/Users/you/.apptrace/mcp/dist/index.js"]
-env = { APPTRACE_WORKSPACE_ROOT = "/Users/you/Library/Application Support/AppTrace/workspace", APPTRACE_IPATOOL_PATH = "ipatool" }
+env = { APPTRACE_WORKSPACE_ROOT = "/Users/you/Library/Application Support/AppTrace/workspace", APPTRACE_CLI_PATH = "/path/to/@zhuixin/cli/dist/index.js" }
 ```
 
 Claude Code, Cursor, Claude Desktop (`.mcp.json` / `mcp.json`):
@@ -46,7 +59,7 @@ Claude Code, Cursor, Claude Desktop (`.mcp.json` / `mcp.json`):
       "args": ["/Users/you/.apptrace/mcp/dist/index.js"],
       "env": {
         "APPTRACE_WORKSPACE_ROOT": "/Users/you/Library/Application Support/AppTrace/workspace",
-        "APPTRACE_IPATOOL_PATH": "ipatool"
+        "APPTRACE_CLI_PATH": "/path/to/@zhuixin/cli/dist/index.js"
       }
     }
   }

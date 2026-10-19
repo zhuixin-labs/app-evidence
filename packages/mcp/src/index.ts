@@ -1,10 +1,12 @@
 #!/usr/bin/env node
+import { version } from "../package.json";
 import {
   AppAnalysisService,
   CoreFailure,
   CoreServer,
   VersionComparisonService,
   loadConfig,
+  OnboardingService,
   type AnalysisGoal,
   type CoreConfig
 } from "@zhuixin/metadata";
@@ -15,6 +17,7 @@ import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { registerOnboarding, setupResponse } from "./onboarding.js";
 
 const GOALS = [
   "tech_stack",
@@ -34,7 +37,7 @@ function errorResult(error: unknown) {
         );
   const nextAction =
     failure.code === "AUTH_REQUIRED" || failure.code === "KEYCHAIN_LOCKED"
-      ? "运行 apptrace auth login，然后重试。"
+      ? "调用 open_login，随后通过 get_setup_status 等待，再恢复原请求。"
       : failure.code === "LICENSE_REQUIRED"
         ? "请先在同一 Apple 账号的 App Store 获取该应用。"
         : undefined;
@@ -101,15 +104,17 @@ export async function startMcpServer(
   >();
   const mcp = new McpServer({
     name: "apptrace",
-    version: "0.1.0"
+    version
   });
+  const onboarding = new OnboardingService(config);
+  registerOnboarding(mcp, onboarding);
 
   mcp.registerTool(
     "analyze_app",
     {
       title: "Analyze an application",
       description:
-        "Resolve, acquire, inspect, extract and statically analyze an authorized app. Returns a compact evidence summary.",
+        "Analyze an authorized app. Automatically prepares missing tools and opens a local Windows login window when needed. awaiting_setup preserves resume.arguments: follow next_tool and retry when ready. Never request credentials in chat.",
       inputSchema: z.object({
         source: z
           .string()
@@ -145,6 +150,18 @@ export async function startMcpServer(
         );
       }
       try {
+        const tools = await onboarding.status(false);
+        if (tools.state !== "ready") {
+          return textResult(setupResponse(tools.state === "tools_missing" ? await onboarding.prepare() : tools, input));
+        }
+        const prepared = await analysis.prepareTarget({ source: input.source, targetId: input.target_id });
+        if (prepared.requiresAccount) {
+          const status = await onboarding.status();
+          if (status.state !== "ready") {
+            const next = ["login_required", "keychain_locked"].includes(status.state) ? await onboarding.openLogin() : status;
+            return textResult(setupResponse(next, input));
+          }
+        }
         const runId = randomUUID();
         const run: {
           id: string;
@@ -163,7 +180,7 @@ export async function startMcpServer(
         run.promise = analysis
           .analyzeApp({
             source: input.source,
-            targetId: input.target_id,
+            targetId: prepared.targetId,
             goals: input.goals,
             force: input.force,
             timeoutMs: (input.timeout_seconds ?? 1_200) * 1_000
@@ -174,7 +191,7 @@ export async function startMcpServer(
             run.finishedAt = new Date().toISOString();
             core.store.upsertAnalysisRun({
               id: run.id,
-              targetId: input.target_id,
+              targetId: prepared.targetId,
               status: "completed",
               startedAt: run.startedAt,
               finishedAt: run.finishedAt,
@@ -199,7 +216,7 @@ export async function startMcpServer(
             run.finishedAt = new Date().toISOString();
             core.store.upsertAnalysisRun({
               id: run.id,
-              targetId: input.target_id,
+              targetId: prepared.targetId,
               status: "failed",
               startedAt: run.startedAt,
               finishedAt: run.finishedAt,
@@ -210,7 +227,7 @@ export async function startMcpServer(
         runs.set(runId, run);
         core.store.upsertAnalysisRun({
           id: runId,
-          targetId: input.target_id,
+          targetId: prepared.targetId,
           status: "running",
           startedAt: run.startedAt,
           updatedAt: run.startedAt

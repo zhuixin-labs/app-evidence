@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { version } from "../package.json";
+import { resolveTool } from "./tools.js";
 import {
   CHANNELS,
   accountCheckSchema,
@@ -85,7 +87,7 @@ export class CoreServer {
     switch (channel) {
       case CHANNELS.health:
         return {
-          version: "0.1.0",
+          version,
           workspaceRoot: this.options.config.workspaceRoot,
           hostPlatform: this.options.config.hostPlatform,
           store: this.store.kind,
@@ -94,13 +96,19 @@ export class CoreServer {
               id: "rea",
               label: "Analysis engine",
               path: this.options.config.enginePath,
-              available: toolAvailable(this.options.config.enginePath)
+              available: fs.existsSync(this.options.config.enginePath)
             },
             {
               id: "ipatool",
               label: "ipatool",
               path: this.options.config.ipatoolPath,
-              available: toolAvailable(this.options.config.ipatoolPath)
+              available: Boolean(resolveTool(this.options.config.ipatoolPath))
+            },
+            {
+              id: "analysis-cli",
+              label: "REA command",
+              path: this.options.config.analysisEnginePath,
+              available: Boolean(resolveTool(this.options.config.analysisEnginePath))
             },
             ...(process.env.JAVA_HOME
               ? [
@@ -298,9 +306,4 @@ export class CoreServer {
     this.terminals.closeAll();
     this.store.close();
   }
-}
-
-function toolAvailable(value: string): boolean {
-  if (!value) return false;
-  return path.isAbsolute(value) ? fs.existsSync(value) : true;
 }

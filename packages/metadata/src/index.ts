@@ -1,6 +1,9 @@
 export { CoreServer, CoreServer as MetadataServer } from "./server.js";
 export type { CoreServerOptions as MetadataServerOptions } from "./server.js";
 export { loadConfig } from "./config.js";
+export { resolveTool } from "./tools.js";
+export { OnboardingService, runInstallation, missingSetupTools, trackInstallationChild } from "./onboarding/service.js";
+export type { SetupStatus } from "./onboarding/service.js";
 export type { CoreConfig } from "./config.js";
 export { createStore } from "./store.js";
 export { WorkspaceService } from "./workspace.js";

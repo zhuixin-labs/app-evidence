@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { resolveTool } from "./tools.js";
 
 const requireFromHere = createRequire(__filename);
 
@@ -45,9 +46,8 @@ export function loadConfig(
   return {
     workspaceRoot: resolvedWorkspaceRoot,
     ipatoolPath:
+      env.APPTRACE_IPATOOL_PATH || env.REA_IPATOOL_PATH ||
       firstExisting([
-        env.APPTRACE_IPATOOL_PATH,
-        env.REA_IPATOOL_PATH,
         path.join(workspaceTools, "ipatool", "bin", ipatoolName),
         path.join(cwd, "tools", "ipatool", "bin", ipatoolName),
         path.join(legacyRoot, "tools", "ipatool", "bin", ipatoolName)
@@ -61,13 +61,12 @@ export function loadConfig(
       packagedEnginePath() ||
       path.resolve(cwd, "apptrace-engine/dist/engine-main.js"),
     analysisEnginePath:
+      env.APPTRACE_ANALYSIS_ENGINE_PATH || env.APPTRACE_REA_PATH || env.REA_PATH ||
       firstExisting([
-        env.APPTRACE_ANALYSIS_ENGINE_PATH,
-        env.APPTRACE_REA_PATH,
-        env.REA_PATH,
+        path.join(workspaceTools, "bin", reaName),
         path.join(cwd, reaName),
         path.join(legacyRoot, reaName)
-      ]) || path.resolve(cwd, reaName),
+      ]) || resolveTool("rea", env) || "rea",
     licenseToken: env.APPTRACE_LICENSE,
     hostPlatform
   };

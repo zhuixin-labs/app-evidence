@@ -27,6 +27,9 @@ try {
   const { tools } = await client.listTools();
   const names = tools.map((tool) => tool.name);
   for (const required of [
+    "prepare_environment",
+    "get_setup_status",
+    "open_login",
     "analyze_app",
     "get_analysis_run",
     "list_targets",

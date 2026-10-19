@@ -11,11 +11,27 @@ are implementation details.
 
 ## Start here
 
+If AppTrace tools are not available yet and the user asks to set up AppTrace,
+use the available shell to install `@zhuixin/cli` and run
+`apptrace setup --write-config <Codex config.toml path> --install-skill`.
+Use the client's actual configuration path (normally `~/.codex/config.toml`).
+The fixed installer/config writer handles paths and merging; do not invent
+installation scripts. Explain once that the client must reload its MCP servers.
+Do not claim tools are available until they are discovered. Other clients can
+use their normal JSON configuration path without `--install-skill`.
+
 When the user provides an App Store URL or App ID and asks what the app uses,
 what it contains, or for a report:
 
 1. Call `analyze_app` with the source and the smallest useful set of goals.
-   It returns `run_id` when the analysis is still running.
+   If it returns `awaiting_setup`, preserve the complete `resume.arguments`.
+   Follow `next_tool` automatically: `prepare_environment` installs the fixed
+   toolchain, `open_login` opens the user's local Windows sign-in window, and
+   `get_setup_status(wait_seconds=20)` waits for progress. Report meaningful
+   stage changes; never ask the user to run installation commands that a tool
+   can run. When state is `ready`, call `analyze_app` with the saved arguments.
+   This is agent-driven resumption, not an independently scheduled analysis.
+   When analysis is running it returns `runId`.
 2. Use `get_analysis_run` to wait for or retrieve the completed result.
 3. Prefer goals `tech_stack`, `feature_map`, and `report` for a first pass.
 4. Add `network` when the user asks about APIs or data flow.
@@ -28,10 +44,22 @@ what it contains, or for a report:
 
 If a tool returns `AUTH_REQUIRED` or `KEYCHAIN_LOCKED`:
 
-1. Stop the workflow.
-2. Tell the user to run `apptrace auth login` in their own terminal.
-3. Never ask for the password, 2FA code, keychain passphrase, Cookie, or token.
-4. After the user confirms login, retry the original action once.
+1. Call `open_login`. Tell the user to enter credentials only in the local window.
+2. Poll `get_setup_status(wait_seconds=20, require_account=true)` while `login_pending`; do not open
+   repeated windows. When ready, resume the saved request without asking the
+   user to repeat their goal.
+3. Never ask for, capture, screenshot, log, or relay passwords, verification
+   codes, keychain passphrases, cookies, or tokens. Only the user handles them.
+4. If a login attempt is cancelled or fails, explain the state and wait for the
+   user to request another attempt. Do not repeatedly reopen a dismissed window.
+5. On hosts without automatic login windows, give the single fallback command
+   `apptrace auth login` and resume after the user confirms completion.
+
+For `failed`, distinguish account-check failure from installation failure.
+Do not infer that the user is logged out from a timeout or unknown response.
+Inspect the installation log only for tool-install failures, then retry
+`prepare_environment(retry=true)` at most once after addressing the cause.
+Never read or send login terminal output to an analysis tool.
 
 If a tool returns `LICENSE_REQUIRED`, explain that the Apple account needs to
 obtain the app from the iPhone App Store first. Do not attempt to bypass it.
@@ -81,6 +109,9 @@ Evidence for that finding type.
 
 ## Useful tools
 
+- `prepare_environment`
+- `get_setup_status`
+- `open_login`
 - `analyze_app`
 - `get_analysis_run`
 - `auth_status`

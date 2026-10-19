@@ -11,6 +11,22 @@ if (-not $WorkspaceRoot) {
 $Tools = if ($env:APPTRACE_TOOLS_DIR) { $env:APPTRACE_TOOLS_DIR } else { Join-Path $WorkspaceRoot "tools" }
 $Downloads = Join-Path $Tools "downloads"
 New-Item -ItemType Directory -Force -Path $Tools, $Downloads | Out-Null
+# Resolve 8.3 paths before PowerShell archive/move cmdlets process their parents.
+$Tools = (Get-Item -LiteralPath $Tools).FullName
+$Downloads = (Get-Item -LiteralPath $Downloads).FullName
+
+function Assert-ToolPath([string]$Target) {
+  $RootPath = [IO.Path]::GetFullPath($Tools).TrimEnd('\') + '\'
+  $TargetPath = [IO.Path]::GetFullPath($Target)
+  if (-not $TargetPath.StartsWith($RootPath, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing filesystem operation outside tools: $TargetPath"
+  }
+}
+
+function Remove-ToolDirectory([string]$Target) {
+  Assert-ToolPath $Target
+  if (Test-Path -LiteralPath $Target) { Remove-Item -LiteralPath $Target -Recurse -Force }
+}
 
 function Get-Sha256([string]$Path) {
   (Get-FileHash -Algorithm SHA256 -Path $Path).Hash.ToLowerInvariant()
@@ -28,7 +44,7 @@ function Download([string]$Url, [string]$Destination) {
   if (Test-Path $Destination) { return }
   Write-Host "Downloading $Url"
   Invoke-WebRequest -Uri $Url -OutFile "$Destination.part" -UseBasicParsing
-  Move-Item "$Destination.part" $Destination -Force
+  [IO.File]::Move("$Destination.part", $Destination)
 }
 
 # Ghidra 12.1.4
@@ -55,7 +71,7 @@ Assert-Sha256 $JdkZip $JdkPackage.checksum
 $JdkHome = Join-Path $Tools "jdk"
 if (-not (Test-Path (Join-Path $JdkHome "bin\java.exe"))) {
   $TempJdk = Join-Path $Tools "jdk.tmp"
-  Remove-Item -Recurse -Force $TempJdk -ErrorAction SilentlyContinue
+  Remove-ToolDirectory $TempJdk
   New-Item -ItemType Directory -Force -Path $TempJdk | Out-Null
   Expand-Archive -Path $JdkZip -DestinationPath $TempJdk -Force
   $Java = Get-ChildItem -Path $TempJdk -Recurse -Filter java.exe |
@@ -63,34 +79,35 @@ if (-not (Test-Path (Join-Path $JdkHome "bin\java.exe"))) {
     Select-Object -First 1
   if (-not $Java) { throw "java.exe not found in JDK archive." }
   $ExtractedHome = Split-Path -Parent (Split-Path -Parent $Java.FullName)
-  Remove-Item -Recurse -Force $JdkHome -ErrorAction SilentlyContinue
-  Move-Item $ExtractedHome $JdkHome
-  Remove-Item -Recurse -Force $TempJdk -ErrorAction SilentlyContinue
+  Remove-ToolDirectory $JdkHome
+  Assert-ToolPath $ExtractedHome
+  Assert-ToolPath $JdkHome
+  Move-Item -LiteralPath $ExtractedHome -Destination $JdkHome
+  Remove-ToolDirectory $TempJdk
 }
 
 # ipatool 2.7.0 Windows x64
-$IpatoolUrl = "https://github.com/majd/ipatool/releases/download/v2.7.0/ipatool-2.7.0-windows-amd64.zip"
-$IpatoolZip = Join-Path $Downloads "ipatool-2.7.0-windows-amd64.zip"
+$IpatoolUrl = "https://github.com/majd/ipatool/releases/download/v2.7.0/ipatool-2.7.0-windows-amd64.tar.gz"
+$IpatoolZip = Join-Path $Downloads "ipatool-2.7.0-windows-amd64.tar.gz"
 Download $IpatoolUrl $IpatoolZip
 if ($env:APPTRACE_IPATOOL_SHA256) {
   Assert-Sha256 $IpatoolZip $env:APPTRACE_IPATOOL_SHA256
 } else {
-  Write-Warning "APPTRACE_IPATOOL_SHA256 is not set; verify the official GitHub release hash before production use."
+  Assert-Sha256 $IpatoolZip "b729608716908be287c2e6972f9e8cd05f879810ae5d182fc856c9e57cca0dd5"
 }
 $IpatoolHome = Join-Path $Tools "ipatool"
 if (-not (Test-Path (Join-Path $IpatoolHome "bin\ipatool.exe"))) {
   $TempIpatool = Join-Path $Tools "ipatool.tmp"
-  Remove-Item -Recurse -Force $TempIpatool -ErrorAction SilentlyContinue
-  Expand-Archive -Path $IpatoolZip -DestinationPath $TempIpatool -Force
-  $Exe = Get-ChildItem -Path $TempIpatool -Recurse -Filter ipatool.exe | Select-Object -First 1
+  Remove-ToolDirectory $TempIpatool
+  New-Item -ItemType Directory -Force -Path $TempIpatool | Out-Null
+  & tar.exe -xzf $IpatoolZip -C $TempIpatool
+  if ($LASTEXITCODE -ne 0) { throw "Failed to extract ipatool archive." }
+  $Exe = Get-Item -LiteralPath (Join-Path $TempIpatool "bin\ipatool-2.7.0-windows-amd64.exe") -ErrorAction SilentlyContinue
   if (-not $Exe) { throw "ipatool.exe not found in archive." }
-  Remove-Item -Recurse -Force $IpatoolHome -ErrorAction SilentlyContinue
-  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Exe.FullName) | Out-Null
-  Move-Item (Split-Path -Parent $Exe.FullName) $IpatoolHome
-  $Moved = Get-ChildItem -Path $IpatoolHome -Recurse -Filter ipatool.exe | Select-Object -First 1
+  Remove-ToolDirectory $IpatoolHome
   New-Item -ItemType Directory -Force -Path (Join-Path $IpatoolHome "bin") | Out-Null
-  Copy-Item $Moved.FullName (Join-Path $IpatoolHome "bin\ipatool.exe") -Force
-  Remove-Item -Recurse -Force $TempIpatool -ErrorAction SilentlyContinue
+  Copy-Item -LiteralPath $Exe.FullName -Destination (Join-Path $IpatoolHome "bin\ipatool.exe") -Force
+  Remove-ToolDirectory $TempIpatool
 }
 
 Write-Host "Ghidra:  $GhidraHome"

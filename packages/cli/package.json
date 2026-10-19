@@ -26,7 +26,8 @@
     "@zhuixin/metadata": "workspace:*",
     "@zhuixin/mcp": "workspace:*",
     "@zhuixin/shared": "workspace:*",
-    "rea-agents": "6.4.0"
+    "rea-agents": "6.4.0",
+    "smol-toml": "^1.9.0"
   },
   "devDependencies": {
     "tsup": "^8.5.0"

@@ -30,7 +30,7 @@ pnpm install
 pnpm build
 
 $env:APPTRACE_WORKSPACE_ROOT="$env:APPDATA\AppTrace\workspace"
-$env:APPTRACE_IPATOOL_SHA256="<official-release-sha256>"
+ # Optional: APPTRACE_IPATOOL_SHA256 overrides the pinned official hash.
 node packages\cli\dist\index.js setup --install
 ```
 
@@ -40,8 +40,7 @@ Expected:
 - `rea.cmd` generated under `tools\bin`.
 - No interactive Windows service or global PATH change.
 
-If the ipatool checksum is not supplied, the bootstrap prints a warning. For
-production validation, provide the official hash.
+The official ipatool 2.7.0 Windows x64 SHA-256 is pinned in the installer.
 
 ## 3. Doctor
 

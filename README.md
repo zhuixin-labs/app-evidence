@@ -54,22 +54,26 @@ evidence instead of guessing.
 
 ## Get started
 
-**1 · Install**
+**1 · Ask your agent to install and connect AppTrace**
 
 ```bash
 npm install -g @zhuixin/cli
+apptrace setup --write-config ~/.codex/config.toml --install-skill
 ```
 
-**2 · Sign in to your Apple account**
+Your agent can run these commands for you. Reload the client's MCP servers after
+connection. These onboarding changes are a local, unpublished candidate; the
+published 0.2.0 release still has the Windows issues documented in
+[Windows first-use verification](docs/Windows首次使用验收.md).
 
-```bash
-apptrace auth login
-```
+**2 · Give your agent an app to analyze**
 
-The analysis engine ships with the CLI — there is nothing else to download. Signing in
-lets AppTrace download apps you own from the App Store; it uses
-[ipatool](https://github.com/majd/ipatool) and sends the 2FA prompt to your device.
-This is one-time; run `apptrace setup` at any point for a readiness check.
+The agent installs missing JDK, Ghidra, and ipatool tools and reports progress.
+On Windows, it opens a local sign-in window when Apple authentication is needed.
+Enter your account, password and verification code only in that window. The agent
+checks readiness and resumes your original request; credentials never enter chat.
+Existing local artifacts do not require Apple sign-in. Other platforms use the
+local-terminal fallback `apptrace auth login`.
 
 **3 · Connect your agent**
 
@@ -77,14 +81,14 @@ One command per client. The only difference is where that client reads its confi
 
 | Client | Command |
 | --- | --- |
-| Codex | `apptrace setup --write-config ~/.codex/config.toml` |
+| Codex | `apptrace setup --write-config ~/.codex/config.toml --install-skill` |
 | Claude Code | `apptrace setup --write-config .mcp.json` |
 | Cursor | `apptrace setup --write-config .cursor/mcp.json` |
 | Claude Desktop (macOS) | `apptrace setup --write-config "$HOME/Library/Application Support/Claude/claude_desktop_config.json"` |
 | Claude Desktop (Windows) | `apptrace setup --write-config "%APPDATA%\Claude\claude_desktop_config.json"` |
 
 Restart the client, or open a new conversation, so it picks up the server. Ask for the
-tool list — `/mcp` in Claude Code — and you should see twelve AppTrace tools.
+tool list — `/mcp` in Claude Code — and you should see fifteen AppTrace tools.
 
 Anything that speaks MCP over stdio works the same way: the generated file is a standard
 `mcpServers` entry for JSON clients and `[mcp_servers.apptrace]` for TOML clients.

@@ -9,6 +9,11 @@ import {
   installEngineArtifact,
   VersionComparisonService,
   loadConfig,
+  resolveTool,
+  OnboardingService,
+  runInstallation,
+  missingSetupTools,
+  trackInstallationChild,
   type AnalysisGoal,
   type AnalyzeAppResult
 } from "@zhuixin/metadata";
@@ -20,6 +25,9 @@ import {
   type TargetRecord
 } from "@zhuixin/shared";
 
+import { version } from "../package.json";
+import { writeMcpConfig } from "./mcp-config.js";
+
 const GOALS: AnalysisGoal[] = [
   "tech_stack",
   "feature_map",
@@ -29,13 +37,15 @@ const GOALS: AnalysisGoal[] = [
 ];
 
 function usage(): void {
-  console.log(`AppTrace 0.1.0
+  console.log(`AppTrace ${version}
 
 Usage:
   apptrace setup [--json] [--install] [--write-config <path>]
   apptrace doctor [--json]
   apptrace auth login
   apptrace auth status
+  apptrace auth open
+  apptrace setup --write-config <path> --install-skill
   apptrace targets add <app-store-url-or-id>
   apptrace targets list
   apptrace analyze [app-store-url-or-id] [--target <target-id>] [--goals ...] [--force]
@@ -115,7 +125,8 @@ function withCore<T>(operation: (core: CoreServer) => Promise<T>): Promise<T> {
 function interactive(
   command: string,
   args: string[],
-  env?: NodeJS.ProcessEnv
+  env?: NodeJS.ProcessEnv,
+  onSpawn?: (pid: number) => void
 ): Promise<number | null> {
   return new Promise((resolve, reject) => {
     const isWindowsCommand =
@@ -135,6 +146,10 @@ function interactive(
           stdio: "inherit",
           env: env ? { ...process.env, ...env } : process.env
         });
+    if (child.pid && onSpawn) {
+      try { onSpawn(child.pid); }
+      catch (error) { child.kill(); reject(error); return; }
+    }
     child.on("error", reject);
     child.on("exit", (code) => resolve(code));
   });
@@ -224,15 +239,16 @@ async function installTools(
   config: ReturnType<typeof loadConfig>,
   json = false
 ): Promise<void> {
-  if (
-    fs.existsSync(config.enginePath) &&
-    fs.existsSync(config.ipatoolPath)
-  ) {
+  if (missingSetupTools(config).length === 0) {
+    const managedLauncher = path.join(config.workspaceRoot, "tools", "bin", process.platform === "win32" ? "rea.cmd" : "rea");
+    if (path.resolve(config.analysisEnginePath) === managedLauncher) {
+      createEngineLauncher(config.workspaceRoot);
+    }
     process.stderr.write("Tools already available; download skipped.\n");
     return;
   }
   if (process.platform === "win32" && process.arch === "x64") {
-    const script = path.resolve(__dirname, "../../scripts/bootstrap-tools.ps1");
+    const script = path.resolve(__dirname, "scripts/bootstrap-tools.ps1");
     if (!fs.existsSync(script)) {
       throw new CoreFailure("TOOL_INSTALLER_MISSING", `找不到安装脚本：${script}`);
     }
@@ -248,12 +264,14 @@ async function installTools(
       "-WorkspaceRoot",
       config.workspaceRoot
     ], {
+      // PowerShell 7's inherited module paths can hide Windows PowerShell 5.1 modules.
+      PSModulePath: path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "Modules"),
       APPTRACE_WORKSPACE_ROOT: config.workspaceRoot,
       APPTRACE_TOOLS_DIR: path.join(config.workspaceRoot, "tools"),
       ...(process.env.APPTRACE_IPATOOL_SHA256
         ? { APPTRACE_IPATOOL_SHA256: process.env.APPTRACE_IPATOOL_SHA256 }
         : {})
-    });
+    }, (pid) => trackInstallationChild(config, pid));
     if (code !== 0) {
       throw new CoreFailure(
         "TOOL_INSTALL_FAILED",
@@ -267,10 +285,10 @@ async function installTools(
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new CoreFailure(
       "TOOL_INSTALL_UNSUPPORTED",
-      "v1 自动安装器当前只支持 macOS arm64；其他平台请使用 APPTRACE_ENGINE_PATH 和 APPTRACE_IPATOOL_PATH。"
+      "自动安装器当前支持 macOS arm64 和 Windows x64；其他平台请使用 APPTRACE_ENGINE_PATH 和 APPTRACE_IPATOOL_PATH。"
     );
   }
-  const script = path.resolve(__dirname, "../../scripts/bootstrap-tools.sh");
+  const script = path.resolve(__dirname, "scripts/bootstrap-tools.sh");
   if (!fs.existsSync(script)) {
     throw new CoreFailure("TOOL_INSTALLER_MISSING", `找不到安装脚本：${script}`);
   }
@@ -280,7 +298,7 @@ async function installTools(
   const code = await interactive("/bin/bash", [script], {
     APPTRACE_WORKSPACE_ROOT: config.workspaceRoot,
     APPTRACE_TOOLS_DIR: path.join(config.workspaceRoot, "tools")
-  });
+  }, (pid) => trackInstallationChild(config, pid));
   if (code !== 0) {
     throw new CoreFailure(
       "TOOL_INSTALL_FAILED",
@@ -293,17 +311,21 @@ async function installTools(
 
 async function setup(json: boolean, args: string[]): Promise<void> {
   const configPath = option(args, "--write-config");
-  const config = loadConfig();
+  if (hasFlag(args, "--install-skill") && !configPath) throw new CoreFailure("CONFIG_REQUIRED", "安装 Skill 时请同时指定 --write-config。");
+  let config = loadConfig();
   if (hasFlag(args, "--install")) {
-    await installTools(config, json);
+    await runInstallation(config, () => installTools(config, json));
+    config = loadConfig();
   }
   await doctor(json);
   if (json && !configPath) return;
   const serverEntry = resolveMcpEntry();
   const env: Record<string, string> = {
     APPTRACE_WORKSPACE_ROOT: config.workspaceRoot,
-    APPTRACE_IPATOOL_PATH: config.ipatoolPath
+    APPTRACE_CLI_PATH: __filename
   };
+  const ipatool = resolveTool(config.ipatoolPath);
+  if (ipatool) env.APPTRACE_IPATOOL_PATH = ipatool;
   if (fs.existsSync(config.enginePath)) {
     env.APPTRACE_ENGINE_PATH = config.enginePath;
   }
@@ -314,44 +336,12 @@ async function setup(json: boolean, args: string[]): Promise<void> {
   }
   if (configPath) {
     const absolute = path.resolve(configPath);
-    const extension = path.extname(absolute).toLowerCase();
-    if (extension === ".json") {
-      fs.mkdirSync(path.dirname(absolute), { recursive: true, mode: 0o700 });
-      fs.writeFileSync(
-        absolute,
-        `${JSON.stringify(
-          {
-            mcpServers: {
-              apptrace: {
-                command: process.execPath,
-                args: [serverEntry],
-                env
-              }
-            }
-          },
-          null,
-          2
-        )}\n`,
-        { mode: 0o600 }
-      );
-    } else if (extension === ".toml") {
-      fs.mkdirSync(path.dirname(absolute), { recursive: true, mode: 0o700 });
-      const envToml = Object.entries(env)
-        .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
-        .join(", ");
-      const toml = [
-        "[mcp_servers.apptrace]",
-        `command = ${JSON.stringify(process.execPath)}`,
-        `args = [${JSON.stringify(serverEntry)}]`,
-        `env = { ${envToml} }`,
-        ""
-      ].join("\n");
-      fs.writeFileSync(absolute, toml, { mode: 0o600 });
-    } else {
-      throw new CoreFailure(
-        "INVALID_CONFIG_FORMAT",
-        "--write-config 只支持 .json 或 .toml 文件。"
-      );
+    writeMcpConfig(absolute, { command: process.execPath, args: [serverEntry], env });
+    if (hasFlag(args, "--install-skill")) {
+      const destination = path.join(path.dirname(absolute), "skills", "apptrace", "SKILL.md");
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      if (fs.existsSync(destination)) fs.copyFileSync(destination, `${destination}.${Date.now()}.bak`);
+      fs.copyFileSync(path.join(__dirname, "skills", "apptrace", "SKILL.md"), destination);
     }
     if (json) {
       process.stderr.write(`MCP config written: ${absolute}\n`);
@@ -390,7 +380,14 @@ function resolveMcpEntry(): string {
 
 async function authLogin(): Promise<void> {
   const config = loadConfig();
-  const code = await interactive(config.ipatoolPath, ["auth", "login"]);
+  const ipatool = resolveTool(config.ipatoolPath);
+  if (!ipatool) {
+    throw new CoreFailure(
+      "TOOL_NOT_INSTALLED",
+      `找不到 ipatool（${config.ipatoolPath}）。请先运行 apptrace setup --install，成功后再运行 apptrace auth login。`
+    );
+  }
+  const code = await interactive(ipatool, ["auth", "login"]);
   if (code !== 0) {
     throw new CoreFailure(
       "AUTH_FAILED",
@@ -623,6 +620,11 @@ async function main(): Promise<void> {
     usage();
     return;
   }
+  if (command === "setup-worker") {
+    if (!subcommand || !/^[0-9a-f-]{36}$/.test(subcommand)) throw new CoreFailure("INVALID_INPUT", "无效的安装操作标识。");
+    const config = loadConfig();
+    return runInstallation(config, () => installTools(config), subcommand);
+  }
   if (command === "setup") {
     const setupArgs =
       subcommand?.startsWith("--") && subcommand
@@ -638,6 +640,10 @@ async function main(): Promise<void> {
     return doctor(hasFlag(doctorArgs, "--json"));
   }
   if (command === "auth") {
+    if (subcommand === "open") {
+      printJson(await new OnboardingService(loadConfig(), __filename).openLogin());
+      return;
+    }
     if (subcommand === "login") return authLogin();
     if (subcommand === "status") return authStatus();
   }
@@ -689,6 +695,7 @@ async function main(): Promise<void> {
   }
   if (command === "capabilities") return capabilities(subcommand);
   if (command === "mcp") {
+    process.env.APPTRACE_CLI_PATH = __filename;
     const { startMcpServer } = await import("@zhuixin/mcp");
     await startMcpServer(loadConfig());
     return;

@@ -106,6 +106,11 @@ function numberValue(value: unknown): number | undefined {
 export class AppAnalysisService {
   constructor(private readonly server: CoreServer) {}
 
+  async prepareTarget(options: AnalyzeAppOptions): Promise<{ targetId: string; requiresAccount: boolean }> {
+    const target = await this.resolveTarget(options);
+    return { targetId: target.id, requiresAccount: !artifactOf(await this.detail(target.id)) };
+  }
+
   async analyzeApp(options: AnalyzeAppOptions): Promise<AnalyzeAppResult> {
     const goals = options.goals?.length
       ? [...new Set(options.goals)]
