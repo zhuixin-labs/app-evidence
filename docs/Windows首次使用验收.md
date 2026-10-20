@@ -15,7 +15,7 @@
 1. npm install -g @zhuixin/cli。
 2. 未准备工具时运行 auth login：必须明确指出缺失依赖和下一步，不应暴露 ENOENT 堆栈。
 3. setup --write-config --install-skill：在尚未安装工具时写入隔离的 Codex TOML 和 Skill，用实际配置启动 MCP。
-4. analyze_app 自动触发安装，必须返回 awaiting_setup 和完整 resume.arguments；prepare_environment 重复调用复用安装任务。get_setup_status 查询进度，真实下载、校验和解压，不预先复制工具。
+4. analyze_app 保存请求并返回稳定 runId，独立 Worker 自动触发安装；get_analysis_run 查询进度。安装专项验收取消该分析任务以避免触发真实账号登录，再通过 prepare_environment/get_setup_status 验证真实下载、校验和解压。完整登录恢复另见[Windows认证与任务恢复](Windows认证与任务恢复.md)。
 5. 新开 PowerShell：doctor 找到本次安装的工具。MCP 发现 15 个工具，基本调用正常。
 6. 交互登录入口：到达 ipatool 的输入提示即可证明入口启动；Apple 凭据、2FA 和登录成功由用户验证。
 7. Codex 桌面重新加载后的工具发现和完整应用分析，单独标记为人工验收。
@@ -84,7 +84,7 @@ node scripts/verify-windows-first-use.mjs --packages "$env:TEMP/apptrace-packs"
 | --- | --- |
 | 单入口安装、缺依赖登录提示 | 通过 |
 | 工具安装前写 Codex 配置并安装 Skill | 通过 |
-| analyze_app 自动启动准备、完整保留 resume.arguments | 通过 |
+| 旧版 analyze_app 自动启动准备、完整保留 resume.arguments | 历史版本通过；当前已改为持久化 runId，需按新脚本重验 |
 | 重复 prepare_environment 复用运行中的安装 | 通过 |
 | MCP 轮询真实下载安装至 ready | 通过 |
 | 新 PowerShell doctor、MCP 基本调用 | 通过，15 个工具 |

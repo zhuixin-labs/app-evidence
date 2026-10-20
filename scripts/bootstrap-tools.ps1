@@ -86,31 +86,11 @@ if (-not (Test-Path (Join-Path $JdkHome "bin\java.exe"))) {
   Remove-ToolDirectory $TempJdk
 }
 
-# ipatool 2.7.0 Windows x64
-$IpatoolUrl = "https://github.com/majd/ipatool/releases/download/v2.7.0/ipatool-2.7.0-windows-amd64.tar.gz"
-$IpatoolZip = Join-Path $Downloads "ipatool-2.7.0-windows-amd64.tar.gz"
-Download $IpatoolUrl $IpatoolZip
-if ($env:APPTRACE_IPATOOL_SHA256) {
-  Assert-Sha256 $IpatoolZip $env:APPTRACE_IPATOOL_SHA256
-} else {
-  Assert-Sha256 $IpatoolZip "b729608716908be287c2e6972f9e8cd05f879810ae5d182fc856c9e57cca0dd5"
-}
-$IpatoolHome = Join-Path $Tools "ipatool"
-if (-not (Test-Path (Join-Path $IpatoolHome "bin\ipatool.exe"))) {
-  $TempIpatool = Join-Path $Tools "ipatool.tmp"
-  Remove-ToolDirectory $TempIpatool
-  New-Item -ItemType Directory -Force -Path $TempIpatool | Out-Null
-  & tar.exe -xzf $IpatoolZip -C $TempIpatool
-  if ($LASTEXITCODE -ne 0) { throw "Failed to extract ipatool archive." }
-  $Exe = Get-Item -LiteralPath (Join-Path $TempIpatool "bin\ipatool-2.7.0-windows-amd64.exe") -ErrorAction SilentlyContinue
-  if (-not $Exe) { throw "ipatool.exe not found in archive." }
-  Remove-ToolDirectory $IpatoolHome
-  New-Item -ItemType Directory -Force -Path (Join-Path $IpatoolHome "bin") | Out-Null
-  Copy-Item -LiteralPath $Exe.FullName -Destination (Join-Path $IpatoolHome "bin\ipatool.exe") -Force
-  Remove-ToolDirectory $TempIpatool
-}
+# ipatool 2.7.0 with user-scoped Windows DPAPI credentials.
+& (Join-Path $PSScriptRoot 'build-ipatool.ps1') -ToolsRoot $Tools
+if ($LASTEXITCODE -ne 0) { throw 'Windows credential adapter installation failed' }
 
 Write-Host "Ghidra:  $GhidraHome"
 Write-Host "JDK:     $JdkHome"
-Write-Host "ipatool: $(Join-Path $IpatoolHome 'bin\ipatool.exe')"
+Write-Host "ipatool: $(Join-Path $Tools 'ipatool\bin\ipatool-dpapi-v1.exe')"
 Write-Host "Windows tool bootstrap complete."

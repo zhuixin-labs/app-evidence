@@ -5,8 +5,8 @@ import type {
   EntitlementRecord
 } from "@zhuixin/shared";
 import type { CoreConfig } from "../config.js";
-import { runCommand } from "../process/run.js";
 import { resolveTool } from "../tools.js";
+import { runIpatool, credentialFailure } from "./ipatool.js";
 
 const STATUS_TTL_MS = 5_000;
 const ENTITLEMENTS_TTL_MS = 30_000;
@@ -134,8 +134,8 @@ export class AccountService {
 
     const executable = resolveTool(this.config.ipatoolPath);
     if (!executable) return this.cacheStatus({ authenticated: false, keychain: "unknown", checkedAt: now(), errorCode: "TOOL_NOT_INSTALLED", message: "需要先安装 ipatool。" });
-    const result = await runCommand(
-      executable,
+    const result = await runIpatool(
+      this.config,
       ["auth", "info", "--format", "json", "--non-interactive"],
       { timeoutMs }
     );
@@ -150,16 +150,17 @@ export class AccountService {
       });
     }
     if (result.code !== 0) {
-      const locked = /passphrase|unlock|keyring.*locked/i.test(combined);
-      const missingAccount = /not logged in|not authenticated|no account|not signed in|failed to get account|account.*not found/i.test(combined);
+      const failure = credentialFailure(combined);
+      const locked = failure === "locked";
+      const missingAccount = failure === "missing";
       return this.cacheStatus({
         authenticated: false,
         keychain: locked ? "locked" : "unknown",
         checkedAt: now(),
-        errorCode: locked || missingAccount ? undefined : "AUTH_CHECK_FAILED",
+        errorCode: failure === "access_failed" ? "CREDENTIAL_ACCESS_FAILED" : locked || missingAccount ? undefined : "AUTH_CHECK_FAILED",
         message: locked
           ? "本地 keychain 已锁定，请在客户端登录终端解锁。"
-          : missingAccount ? "尚未登录 Apple 账号。" : "账号状态检查失败，请重试；不能据此判断是否已登录。"
+          : missingAccount ? "尚未登录 Apple 账号。" : failure === "access_failed" ? "Windows 凭据无法读取或解密，请检查当前 Windows 用户和存储；不会自动覆盖凭据。" : "账号状态检查失败，请重试；不能据此判断是否已登录。"
       });
     }
 
@@ -194,8 +195,8 @@ export class AccountService {
       return this.entitlementsCache.value;
     }
 
-    const result = await runCommand(
-      this.config.ipatoolPath,
+    const result = await runIpatool(
+      this.config,
       [
         "list-purchases",
         "--platform",
@@ -209,14 +210,15 @@ export class AccountService {
       { timeoutMs: 60_000 }
     );
     if (result.code !== 0 || result.timedOut) {
-      const locked = /passphrase|unlock/i.test(`${result.stdout}\n${result.stderr}`);
+      const failure = credentialFailure(`${result.stdout}\n${result.stderr}`);
+      const locked = failure === "locked";
       const value: AccountEntitlements = {
         items: [],
         checkedAt: now(),
         truncated: false,
         error: result.timedOut
           ? "读取商店许可超时。"
-          : locked
+          : failure === "access_failed" ? "Windows 凭据无法读取或解密。" : locked
             ? "本地 keychain 已锁定，请先登录/解锁。"
             : "无法读取已拥有的应用，请先登录 Apple 账号。"
       };

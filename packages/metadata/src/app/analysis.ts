@@ -23,6 +23,7 @@ export interface AnalyzeAppOptions {
   force?: boolean;
   timeoutMs?: number;
   onProgress?: (progress: AnalysisProgress) => void;
+  signal?: AbortSignal;
 }
 
 export interface AnalysisProgress {
@@ -127,7 +128,7 @@ export class AppAnalysisService {
     if (!artifact) {
       progress({ step: "acquire", status: "started" });
       const acquire = await this.createJob(target.id, "acquire:app-store");
-      const acquired = await this.waitForJob(acquire.id, timeoutMs);
+      const acquired = await this.waitForJob(acquire.id, timeoutMs, options.signal);
       if (acquired.status !== "ready") {
         throw new CoreFailure(
           acquired.errorCode ?? "ACQUIRE_FAILED",
@@ -151,7 +152,7 @@ export class AppAnalysisService {
     if (!artifact.inspection || artifact.inspection.error) {
       progress({ step: "inspect", status: "started" });
       const inspect = await this.createJob(target.id, "inspect:ipa");
-      const inspected = await this.waitForJob(inspect.id, timeoutMs);
+      const inspected = await this.waitForJob(inspect.id, timeoutMs, options.signal);
       this.requireSuccess(inspected);
       completedSteps.push("inspect");
       progress({
@@ -184,7 +185,7 @@ export class AppAnalysisService {
       } else {
         progress({ step: "analyze_javascript", status: "started" });
         const job = await this.createJob(target.id, "javascript:analyze");
-        const completed = await this.waitForJob(job.id, timeoutMs);
+        const completed = await this.waitForJob(job.id, timeoutMs, options.signal);
         this.requireSuccess(completed);
         completedSteps.push("analyze_javascript");
         progress({
@@ -212,7 +213,7 @@ export class AppAnalysisService {
       } else {
         progress({ step: "inspect_native", status: "started" });
         const job = await this.createJob(target.id, "native:inspect");
-        const completed = await this.waitForJob(job.id, timeoutMs);
+        const completed = await this.waitForJob(job.id, timeoutMs, options.signal);
         this.requireSuccess(completed);
         completedSteps.push("inspect_native");
         progress({
@@ -226,7 +227,7 @@ export class AppAnalysisService {
     if (goals.includes("report")) {
       progress({ step: "report", status: "started" });
       const job = await this.createJob(target.id, "generate:report");
-      const completed = await this.waitForJob(job.id, timeoutMs);
+      const completed = await this.waitForJob(job.id, timeoutMs, options.signal);
       this.requireSuccess(completed);
       completedSteps.push("report");
       progress({
@@ -434,10 +435,15 @@ export class AppAnalysisService {
 
   private async waitForJob(
     jobId: string,
-    timeoutMs = 20 * 60_000
+    timeoutMs = 20 * 60_000,
+    signal?: AbortSignal
   ): Promise<JobRecord> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
+      if (signal?.aborted) {
+        await this.server.handle("jobs:cancel", { jobId });
+        throw new CoreFailure("TASK_CANCELLED", "分析任务已取消。", { jobId });
+      }
       const result = (await this.server.handle("jobs:get", {
         jobId
       })) as { job: JobRecord };

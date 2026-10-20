@@ -23,12 +23,18 @@ apptrace setup --write-config ~/.codex/config.toml
 
 TOML paths get `[mcp_servers.apptrace]`; JSON paths get an `mcpServers` object.
 Restart the client afterwards, then ask it for its tool list — `/mcp` in Claude Code —
-and you should see fifteen `apptrace` tools.
+and you should see sixteen `apptrace` tools.
 
 For Codex, add `--install-skill` to install the accompanying agent instructions.
-`analyze_app` automatically starts missing tool installation and returns
-`awaiting_setup` with complete `resume.arguments`. Follow `next_tool`, then resend
-the saved arguments when ready. `prepare_environment` starts/reuses installation;
+`analyze_app` persists the request and returns a stable `runId` immediately.
+A detached worker prepares tools, waits for authentication and continues the
+same analysis after background account verification. Poll `get_analysis_run`
+with that ID through `preparing`, `awaiting_auth` and `running`; do not resend
+the request or ask the user to confirm completion. `cancel_analysis_run` cancels
+the saved task. The worker survives MCP disconnects. After 30 idle minutes it
+releases its execution slot while retaining the request; a new MCP connection,
+task query or explicit login starts recovery.
+`prepare_environment` starts/reuses installation;
 `get_setup_status(wait_seconds=20)` waits for tools. For Apple sign-in, `open_login`
 opens a separate Windows terminal and
 `get_setup_status(wait_seconds=20, require_account=true)` checks readiness.

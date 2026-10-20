@@ -2,7 +2,7 @@ export { CoreServer, CoreServer as MetadataServer } from "./server.js";
 export type { CoreServerOptions as MetadataServerOptions } from "./server.js";
 export { loadConfig } from "./config.js";
 export { resolveTool } from "./tools.js";
-export { OnboardingService, runInstallation, missingSetupTools, trackInstallationChild } from "./onboarding/service.js";
+export { OnboardingService, runInstallation, missingSetupTools, setupToolsReady, trackInstallationChild } from "./onboarding/service.js";
 export type { SetupStatus } from "./onboarding/service.js";
 export type { CoreConfig } from "./config.js";
 export { createStore } from "./store.js";
@@ -22,4 +22,8 @@ export type {
   VersionSnapshot
 } from "./app/compare.js";
 export { CoreFailure } from "./errors.js";
+export { AnalysisTasks, terminalTask } from "./app/tasks.js";
+export type { AnalysisTask, TaskArguments } from "./app/tasks.js";
+export { startAnalysisWorker, runAnalysisWorker, recoverAnalysisTasks } from "./app/worker.js";
+export { requireBackgroundCredentials } from "./account/ipatool.js";
 export { installEngineArtifact } from "./engine/install.js";

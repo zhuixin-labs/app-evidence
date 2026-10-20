@@ -27,6 +27,10 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm test:mcp
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+      - run: pnpm test:auth-resume
       - name: Pack Windows first-use candidates
         if: runner.os == 'Windows'
         shell: pwsh

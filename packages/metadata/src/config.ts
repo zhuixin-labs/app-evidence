@@ -22,6 +22,7 @@ function packagedEnginePath(): string | undefined {
 export interface CoreConfig {
   workspaceRoot: string;
   ipatoolPath: string;
+  ipatoolManaged?: boolean;
   enginePath: string;
   analysisEnginePath: string;
   licenseToken?: string;
@@ -43,11 +44,16 @@ export function loadConfig(
   const workspaceTools = path.join(resolvedWorkspaceRoot, "tools");
   const reaName = hostPlatform === "win32" ? "rea.cmd" : "rea";
   const ipatoolName = hostPlatform === "win32" ? "ipatool.exe" : "ipatool";
+  const configuredIpatool = env.APPTRACE_IPATOOL_PATH || env.REA_IPATOOL_PATH;
+  const upgradedIpatool = path.join(workspaceTools, "ipatool", "bin", "ipatool-dpapi-v1.exe");
+  const oldManagedIpatool = hostPlatform === "win32" && configuredIpatool && path.resolve(configuredIpatool).toLowerCase() === path.join(workspaceTools, "ipatool", "bin", "ipatool.exe").toLowerCase();
   return {
     workspaceRoot: resolvedWorkspaceRoot,
+    ipatoolManaged: !configuredIpatool || configuredIpatool === "ipatool" || Boolean(oldManagedIpatool) || path.resolve(configuredIpatool).toLowerCase() === upgradedIpatool.toLowerCase(),
     ipatoolPath:
-      env.APPTRACE_IPATOOL_PATH || env.REA_IPATOOL_PATH ||
+      ((oldManagedIpatool || configuredIpatool === "ipatool") && fs.existsSync(upgradedIpatool) ? upgradedIpatool : configuredIpatool) ||
       firstExisting([
+        ...(hostPlatform === "win32" ? [path.join(workspaceTools, "ipatool", "bin", "ipatool-dpapi-v1.exe")] : []),
         path.join(workspaceTools, "ipatool", "bin", ipatoolName),
         path.join(cwd, "tools", "ipatool", "bin", ipatoolName),
         path.join(legacyRoot, "tools", "ipatool", "bin", ipatoolName)

@@ -40,7 +40,10 @@ Expected:
 - `rea.cmd` generated under `tools\bin`.
 - No interactive Windows service or global PATH change.
 
-The official ipatool 2.7.0 Windows x64 SHA-256 is pinned in the installer.
+The Windows installer builds the pinned ipatool 2.7.0 source with the AppTrace
+DPAPI credential backend. Source and portable Go SDK SHA-256 values are pinned;
+the build runs real cross-process DPAPI tests before installing the executable.
+See [Windows authentication and task recovery](Windows认证与任务恢复.md).
 
 ## 3. Doctor
 

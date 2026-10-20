@@ -4,3 +4,7 @@ Copyright 2026 zhuixin-labs
 The public integration packages are licensed under Apache-2.0.
 The private analysis engine is distributed separately under a commercial
 license and is not part of the public source repository.
+
+The Windows installer builds ipatool v2.7.0 (MIT license) from pinned upstream
+source with the AppTrace DPAPI keyring overlay in scripts/ipatool-overlay.
+The upstream license is retained as IPATOOL-LICENSE beside the executable.

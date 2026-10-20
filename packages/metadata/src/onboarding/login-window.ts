@@ -12,7 +12,12 @@ const encoded = (value: string) => Buffer.from(value, "utf16le").toString("base6
 export function loginWindowStatus(): { pending: boolean; exitCode?: number } {
   const store = loginStore();
   const current = store.current();
-  if (!current) return { pending: false };
+  if (!current) {
+    const last = store.last();
+    if (!last) return { pending: false };
+    const result = path.join(store.root, `${last.token}.exit`);
+    return { pending: false, exitCode: fs.existsSync(result) ? Number(fs.readFileSync(result, "utf8").replace(/^\uFEFF/, "").trim()) : 1 };
+  }
   const result = path.join(store.root, `${current.token}.exit`);
   if (fs.existsSync(result)) {
     const exitCode = Number(fs.readFileSync(result, "utf8").replace(/^\uFEFF/, "").trim());
@@ -21,7 +26,7 @@ export function loginWindowStatus(): { pending: boolean; exitCode?: number } {
   }
   if (alive(current.pid)) return { pending: true };
   store.finish(current.token, "failed", "LOGIN_WINDOW_CLOSED");
-  return { pending: false };
+  return { pending: false, exitCode: 1 };
 }
 
 /** The helper returns only a PID. The visible terminal inherits no MCP stdio. */
@@ -39,9 +44,9 @@ export async function openLoginWindow(ipatool: string): Promise<void> {
     "$Host.UI.RawUI.WindowTitle = 'AppTrace - Apple sign in'",
     "Write-Host 'Sign in here. Passwords and verification codes stay in this window.'",
     "$code = 1",
-    `try { & ${literal(ipatool)} auth login; $code = $LASTEXITCODE }`,
+    `try { & ${literal(ipatool)} auth login; $code = $LASTEXITCODE; if ($code -eq 0) { Write-Host 'Verifying background credential access...'; & ${literal(ipatool)} auth info --non-interactive --format json | Out-Null; $code = $LASTEXITCODE } }`,
     `finally { [IO.File]::WriteAllText(${literal(result + ".tmp")}, [string]$code); [IO.File]::Move(${literal(result + ".tmp")}, ${literal(result)}) }`,
-    "if ($code -eq 0) { Write-Host 'Sign-in command finished. Return to your agent.' } else { Write-Host 'Sign-in did not complete. Return to your agent to retry.' }",
+    "if ($code -eq 0) { Write-Host 'Background access verified. Your saved task will continue automatically.' } else { Write-Host 'Sign-in or background verification failed. Your task is saved; request a retry.' }",
     "Read-Host 'Press Enter to close' | Out-Null"
   ].join("\n");
   const launch = `$p = Start-Process -FilePath ${literal(terminal)} -ArgumentList @('-NoProfile', '-EncodedCommand', '${encoded(script)}') -WindowStyle Normal -PassThru; $p.Id`;

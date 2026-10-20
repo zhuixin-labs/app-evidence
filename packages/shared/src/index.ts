@@ -225,7 +225,7 @@ export interface ToolInfo {
 
 export interface AccountStatus {
   authenticated: boolean;
-  errorCode?: "TOOL_NOT_INSTALLED" | "AUTH_CHECK_FAILED" | "AUTH_CHECK_TIMEOUT";
+  errorCode?: "TOOL_NOT_INSTALLED" | "AUTH_CHECK_FAILED" | "AUTH_CHECK_TIMEOUT" | "CREDENTIAL_ACCESS_FAILED";
   email?: string;
   name?: string;
   keychain: "unlocked" | "locked" | "unknown";

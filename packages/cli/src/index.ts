@@ -12,13 +12,17 @@ import {
   resolveTool,
   OnboardingService,
   runInstallation,
-  missingSetupTools,
+  setupToolsReady,
   trackInstallationChild,
+  runAnalysisWorker,
+  recoverAnalysisTasks,
+  requireBackgroundCredentials,
   type AnalysisGoal,
   type AnalyzeAppResult
 } from "@zhuixin/metadata";
 import {
   CHANNELS,
+  type AccountStatus,
   type CapabilityDescriptor,
   type HealthInfo,
   type JobRecord,
@@ -239,7 +243,7 @@ async function installTools(
   config: ReturnType<typeof loadConfig>,
   json = false
 ): Promise<void> {
-  if (missingSetupTools(config).length === 0) {
+  if (await setupToolsReady(config)) {
     const managedLauncher = path.join(config.workspaceRoot, "tools", "bin", process.platform === "win32" ? "rea.cmd" : "rea");
     if (path.resolve(config.analysisEnginePath) === managedLauncher) {
       createEngineLauncher(config.workspaceRoot);
@@ -267,10 +271,7 @@ async function installTools(
       // PowerShell 7's inherited module paths can hide Windows PowerShell 5.1 modules.
       PSModulePath: path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "Modules"),
       APPTRACE_WORKSPACE_ROOT: config.workspaceRoot,
-      APPTRACE_TOOLS_DIR: path.join(config.workspaceRoot, "tools"),
-      ...(process.env.APPTRACE_IPATOOL_SHA256
-        ? { APPTRACE_IPATOOL_SHA256: process.env.APPTRACE_IPATOOL_SHA256 }
-        : {})
+      APPTRACE_TOOLS_DIR: path.join(config.workspaceRoot, "tools")
     }, (pid) => trackInstallationChild(config, pid));
     if (code !== 0) {
       throw new CoreFailure(
@@ -387,6 +388,7 @@ async function authLogin(): Promise<void> {
       `找不到 ipatool（${config.ipatoolPath}）。请先运行 apptrace setup --install，成功后再运行 apptrace auth login。`
     );
   }
+  await requireBackgroundCredentials(config);
   const code = await interactive(ipatool, ["auth", "login"]);
   if (code !== 0) {
     throw new CoreFailure(
@@ -394,13 +396,15 @@ async function authLogin(): Promise<void> {
       `ipatool 登录没有成功，退出码：${code ?? "unknown"}`
     );
   }
-  await authStatus();
+  await authStatus(true);
+  await recoverAnalysisTasks(config, __filename);
 }
 
-async function authStatus(): Promise<void> {
+async function authStatus(requireAuthenticated = false): Promise<void> {
   await withCore(async (core) => {
-    const status = await core.handle(CHANNELS.accountStatus, { force: true });
+    const status = await core.handle(CHANNELS.accountStatus, { force: true }) as AccountStatus;
     printJson(status);
+    if (requireAuthenticated && !status.authenticated) throw new CoreFailure(status.errorCode ?? "BACKGROUND_AUTH_FAILED", status.message ?? "登录后后台凭据验证未通过。");
   });
 }
 
@@ -619,6 +623,10 @@ async function main(): Promise<void> {
   if (!command || ["help", "-h", "--help"].includes(command)) {
     usage();
     return;
+  }
+  if (command === "analysis-worker") {
+    if (!subcommand || !/^[0-9a-f-]{36}$/.test(subcommand)) throw new CoreFailure("INVALID_INPUT", "无效的分析任务标识。");
+    return runAnalysisWorker(loadConfig(), subcommand, __filename);
   }
   if (command === "setup-worker") {
     if (!subcommand || !/^[0-9a-f-]{36}$/.test(subcommand)) throw new CoreFailure("INVALID_INPUT", "无效的安装操作标识。");

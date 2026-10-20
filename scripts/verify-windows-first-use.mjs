@@ -95,7 +95,7 @@ try {
   try {
     await client.connect(new StdioClientTransport({ ...server, cwd: home, env: { ...env, ...server.env }, stderr: "pipe" }));
     const tools = await client.listTools();
-    if (tools.tools.length !== 15) throw new Error("Expected fifteen MCP tools");
+    if (tools.tools.length !== 16) throw new Error("Expected sixteen MCP tools");
     const call = async (name, args = {}) => {
       const response = await client.callTool({ name, arguments: args });
       if (response.isError) throw new Error(`${name}: ${JSON.stringify(response)}`);
@@ -104,8 +104,11 @@ try {
     if ((await call("get_setup_status")).state !== "tools_missing") throw new Error("Expected clean missing tools");
     const original = { source: "123456789", goals: ["tech_stack"], wait_seconds: 0 };
     const suspended = await call("analyze_app", original);
-    if (suspended.status !== "awaiting_setup" || JSON.stringify(suspended.resume.arguments) !== JSON.stringify(original)) throw new Error("Original analysis not preserved");
-    if ((await call("prepare_environment")).state !== "installing") throw new Error("Expected existing install to be reused");
+    if (!suspended.runId || !["queued", "preparing"].includes(suspended.status)) throw new Error("Persistent analysis task was not created");
+    // This script validates installation without requesting an Apple login.
+    await call("cancel_analysis_run", { run_id: suspended.runId });
+    const preparation = await call("prepare_environment");
+    if (!["installing", "ready"].includes(preparation.state)) throw new Error("Expected installation to start or be reused");
     console.log("START 04-agent-install");
     const deadline = Date.now() + 20 * 60_000;
     let status;

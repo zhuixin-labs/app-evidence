@@ -7,6 +7,7 @@ import { AccountService } from "../account/service.js";
 import { CoreFailure } from "../errors.js";
 import { operationAlive, OperationStore } from "./operation.js";
 import { loginWindowStatus, openLoginWindow } from "./login-window.js";
+import { requireBackgroundCredentials, managedIpatool } from "../account/ipatool.js";
 
 export interface SetupStatus {
   state: "tools_missing" | "installing" | "login_required" | "keychain_locked" | "login_pending" | "ready" | "failed";
@@ -54,13 +55,25 @@ export function missingSetupTools(config: CoreConfig): string[] {
   }
 
 
+export async function setupToolsReady(config: CoreConfig): Promise<boolean> {
+  if (missingSetupTools(config).length) return false;
+  try { await requireBackgroundCredentials(config); return true; }
+  catch (error) {
+    if (error instanceof CoreFailure && error.code === "IPATOOL_UPDATE_REQUIRED" && managedIpatool(config)) return false;
+    throw error;
+  }
+}
+
 export class OnboardingService {
   constructor(private readonly config: CoreConfig, private readonly cliPath = process.env.APPTRACE_CLI_PATH) {}
 
   private environment(): NodeJS.ProcessEnv {
     const env: NodeJS.ProcessEnv = { ...process.env, APPTRACE_WORKSPACE_ROOT: this.config.workspaceRoot };
     // Old setup versions wrote these unresolved default names into MCP config.
-    if (env.APPTRACE_IPATOOL_PATH === "ipatool" && !resolveTool("ipatool")) delete env.APPTRACE_IPATOOL_PATH;
+    if (env.APPTRACE_IPATOOL_PATH === "ipatool") delete env.APPTRACE_IPATOOL_PATH;
+    for (const key of ["APPTRACE_IPATOOL_PATH", "REA_IPATOOL_PATH"]) {
+      if (env[key] && path.resolve(env[key]!).toLowerCase() === path.join(this.config.workspaceRoot, "tools", "ipatool", "bin", "ipatool.exe").toLowerCase()) delete env[key];
+    }
     if (env.APPTRACE_ANALYSIS_ENGINE_PATH === "rea" && !resolveTool("rea")) delete env.APPTRACE_ANALYSIS_ENGINE_PATH;
     return env;
   }
@@ -99,10 +112,18 @@ export class OnboardingService {
       }
       return { state: "tools_missing", message: "需要准备分析工具，Agent 可以自动安装。", missingTools, updatedAt, next_tool: "prepare_environment" };
     }
+    try { await requireBackgroundCredentials(this.config); }
+    catch (error) {
+      const managed = managedIpatool(this.config);
+      return { state: managed ? "tools_missing" : "failed", message: error instanceof Error ? error.message : "需要更新 Windows 认证工具。", updatedAt, missingTools: ["ipatool_dpapi"], errorCode: "IPATOOL_UPDATE_REQUIRED", next_tool: managed ? "prepare_environment" : undefined };
+    }
     if (!requireAccount) return { state: "ready", message: "本地分析工具已准备好。", updatedAt };
     const account = await new AccountService(this.config).status(true, timeoutMs);
     if (account.authenticated) return { state: "ready", message: "环境与 Apple 登录已就绪，继续原分析请求。", updatedAt };
-    if (loginWindowStatus().pending) return { state: "login_pending", message: "请在已打开的 AppTrace 登录窗口输入账号、密码或验证码；完成后 Agent 会继续。", updatedAt, next_tool: "get_setup_status" };
+    if (account.errorCode === "CREDENTIAL_ACCESS_FAILED") return { state: "failed", message: account.message ?? "Windows 凭据无法读取或解密。", errorCode: account.errorCode, updatedAt };
+    const login = loginWindowStatus();
+    if (login.pending) return { state: "login_pending", message: "请在已打开的 AppTrace 登录窗口输入账号、密码或验证码；完成后任务会自动继续。", updatedAt, next_tool: "get_setup_status" };
+    if (login.exitCode !== undefined && login.exitCode !== 0) return { state: "login_required", message: "登录已取消或失败，任务已保留；请明确重试登录。", errorCode: "LOGIN_CANCELLED_OR_FAILED", updatedAt, next_tool: "open_login" };
     if (account.errorCode) return { state: "failed", message: account.message ?? "账号状态检查失败。", errorCode: account.errorCode, updatedAt, next_tool: "get_setup_status" };
     return { state: account.keychain === "locked" ? "keychain_locked" : "login_required", message: "需要用户在本地窗口完成 Apple 登录或解锁，Agent 可以打开窗口。", updatedAt, next_tool: "open_login" };
   }

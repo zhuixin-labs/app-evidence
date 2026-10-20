@@ -79,7 +79,7 @@ export class CoreServer {
       this.capabilityRegistry,
       options.emit
     );
-    this.terminals = new TerminalManager(options.config.ipatoolPath, options.emit);
+    this.terminals = new TerminalManager(options.config, options.emit);
     this.account = new AccountService(options.config);
   }
 

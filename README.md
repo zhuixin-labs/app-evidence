@@ -71,7 +71,9 @@ published 0.2.0 release still has the Windows issues documented in
 The agent installs missing JDK, Ghidra, and ipatool tools and reports progress.
 On Windows, it opens a local sign-in window when Apple authentication is needed.
 Enter your account, password and verification code only in that window. The agent
-checks readiness and resumes your original request; credentials never enter chat.
+waits for background credential verification; a persistent worker then continues
+the same task even if MCP disconnects. Credentials never enter chat. Windows uses
+user-scoped DPAPI storage; existing users sign in locally once after upgrading.
 Existing local artifacts do not require Apple sign-in. Other platforms use the
 local-terminal fallback `apptrace auth login`.
 
@@ -88,7 +90,7 @@ One command per client. The only difference is where that client reads its confi
 | Claude Desktop (Windows) | `apptrace setup --write-config "%APPDATA%\Claude\claude_desktop_config.json"` |
 
 Restart the client, or open a new conversation, so it picks up the server. Ask for the
-tool list — `/mcp` in Claude Code — and you should see fifteen AppTrace tools.
+tool list — `/mcp` in Claude Code — and you should see sixteen AppTrace tools.
 
 Anything that speaks MCP over stdio works the same way: the generated file is a standard
 `mcpServers` entry for JSON clients and `[mcp_servers.apptrace]` for TOML clients.

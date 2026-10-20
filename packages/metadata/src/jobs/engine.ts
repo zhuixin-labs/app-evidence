@@ -4,6 +4,7 @@ import { EngineClient } from "@zhuixin/engine-client";
 import type { CapabilityRegistry } from "../capabilities/registry.js";
 import type { CoreConfig } from "../config.js";
 import { fail } from "../errors.js";
+import { trackChild } from "../process/children.js";
 import type { Store } from "../store.js";
 import type { WorkspaceService } from "../workspace.js";
 
@@ -62,7 +63,7 @@ export class EngineCapabilityRunner {
     const client = new EngineClient(this.config.enginePath, {
       APPTRACE_WORKSPACE_ROOT: this.workspace.root,
       APPTRACE_ANALYSIS_ENGINE_PATH: this.config.analysisEnginePath
-    });
+    }, trackChild);
     try {
       this.patch(job, { status: "analyzing", progress: 5, startedAt: new Date().toISOString() });
       await client.execute(this.workspace.root, job.capabilityId as never, {

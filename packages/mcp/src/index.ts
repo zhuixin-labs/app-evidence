@@ -7,6 +7,9 @@ import {
   VersionComparisonService,
   loadConfig,
   OnboardingService,
+  AnalysisTasks,
+  startAnalysisWorker,
+  recoverAnalysisTasks,
   type AnalysisGoal,
   type CoreConfig
 } from "@zhuixin/metadata";
@@ -15,9 +18,9 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { registerOnboarding, setupResponse } from "./onboarding.js";
+import { registerOnboarding } from "./onboarding.js";
+import { waitForTask } from "./tasks.js";
 
 const GOALS = [
   "tech_stack",
@@ -88,20 +91,9 @@ export async function startMcpServer(
   config: CoreConfig = loadConfig()
 ): Promise<McpServer> {
   const core = new CoreServer({ config, emit: () => {} });
-  core.store.interruptRunningAnalysisRuns();
   const analysis = new AppAnalysisService(core);
-  const runs = new Map<
-    string,
-    {
-      id: string;
-      status: "running" | "completed" | "failed";
-      startedAt: string;
-      finishedAt?: string;
-      result?: Record<string, unknown>;
-      error?: { code: string; message: string; details?: unknown };
-      promise: Promise<void>;
-    }
-  >();
+  const tasks = new AnalysisTasks(config.workspaceRoot);
+  await recoverAnalysisTasks(config);
   const mcp = new McpServer({
     name: "apptrace",
     version
@@ -114,7 +106,7 @@ export async function startMcpServer(
     {
       title: "Analyze an application",
       description:
-        "Analyze an authorized app. Automatically prepares missing tools and opens a local Windows login window when needed. awaiting_setup preserves resume.arguments: follow next_tool and retry when ready. Never request credentials in chat.",
+        "Create a persistent application analysis task. A local worker prepares tools, opens sign-in once and automatically continues after background authentication succeeds, even if MCP disconnects. Always retain runId and poll get_analysis_run while preparing/awaiting_auth/running. Never request credentials in chat.",
       inputSchema: z.object({
         source: z
           .string()
@@ -150,103 +142,9 @@ export async function startMcpServer(
         );
       }
       try {
-        const tools = await onboarding.status(false);
-        if (tools.state !== "ready") {
-          return textResult(setupResponse(tools.state === "tools_missing" ? await onboarding.prepare() : tools, input));
-        }
-        const prepared = await analysis.prepareTarget({ source: input.source, targetId: input.target_id });
-        if (prepared.requiresAccount) {
-          const status = await onboarding.status();
-          if (status.state !== "ready") {
-            const next = ["login_required", "keychain_locked"].includes(status.state) ? await onboarding.openLogin() : status;
-            return textResult(setupResponse(next, input));
-          }
-        }
-        const runId = randomUUID();
-        const run: {
-          id: string;
-          status: "running" | "completed" | "failed";
-          startedAt: string;
-          finishedAt?: string;
-          result?: Record<string, unknown>;
-          error?: { code: string; message: string; details?: unknown };
-          promise: Promise<void>;
-        } = {
-          id: runId,
-          status: "running",
-          startedAt: new Date().toISOString(),
-          promise: Promise.resolve()
-        };
-        run.promise = analysis
-          .analyzeApp({
-            source: input.source,
-            targetId: prepared.targetId,
-            goals: input.goals,
-            force: input.force,
-            timeoutMs: (input.timeout_seconds ?? 1_200) * 1_000
-          })
-          .then((result) => {
-            run.status = "completed";
-            run.result = result as unknown as Record<string, unknown>;
-            run.finishedAt = new Date().toISOString();
-            core.store.upsertAnalysisRun({
-              id: run.id,
-              targetId: prepared.targetId,
-              status: "completed",
-              startedAt: run.startedAt,
-              finishedAt: run.finishedAt,
-              result: run.result,
-              updatedAt: run.finishedAt
-            });
-          })
-          .catch((error: unknown) => {
-            const failure =
-              error instanceof CoreFailure
-                ? error
-                : new CoreFailure(
-                    "INTERNAL_ERROR",
-                    error instanceof Error ? error.message : String(error)
-                  );
-            run.status = "failed";
-            run.error = {
-              code: failure.code,
-              message: failure.message,
-              details: failure.details
-            };
-            run.finishedAt = new Date().toISOString();
-            core.store.upsertAnalysisRun({
-              id: run.id,
-              targetId: prepared.targetId,
-              status: "failed",
-              startedAt: run.startedAt,
-              finishedAt: run.finishedAt,
-              error: run.error,
-              updatedAt: run.finishedAt
-            });
-          });
-        runs.set(runId, run);
-        core.store.upsertAnalysisRun({
-          id: runId,
-          targetId: prepared.targetId,
-          status: "running",
-          startedAt: run.startedAt,
-          updatedAt: run.startedAt
-        });
-        const waitSeconds = Math.max(0, input.wait_seconds ?? 10);
-        await Promise.race([
-          run.promise,
-          new Promise((resolve) => setTimeout(resolve, waitSeconds * 1_000))
-        ]);
-        return textResult({
-          runId,
-          status: run.status,
-          result: run.result,
-          error: run.error,
-          nextAction:
-            run.status === "running"
-              ? "调用 get_analysis_run 继续等待或读取结果。"
-              : undefined
-        });
+        const task = tasks.create(input);
+        await startAnalysisWorker(config, task.id);
+        return textResult(await waitForTask(tasks, task.id, input.wait_seconds ?? 10));
       } catch (error) {
         return errorResult(error);
       }
@@ -261,33 +159,26 @@ export async function startMcpServer(
         "Wait for or retrieve the result of an analyze_app run.",
       inputSchema: z.object({
         run_id: z.string().uuid(),
-        wait_seconds: z.number().int().min(0).max(1800).optional()
+        wait_seconds: z.number().int().min(0).max(30).optional()
       })
     },
     async ({ run_id, wait_seconds }) => {
-      const run = runs.get(run_id);
-      if (!run) {
-        const stored = core.store.getAnalysisRun(run_id);
-        return stored
-          ? textResult(stored)
-          : errorResult(
-              new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "分析运行不存在或已经超时。")
-            );
+      const task = tasks.get(run_id);
+      if (task) {
+        await startAnalysisWorker(config, task.id);
+        return textResult(await waitForTask(tasks, task.id, wait_seconds ?? 10));
       }
-      await Promise.race([
-        run.promise,
-        new Promise((resolve) =>
-          setTimeout(resolve, Math.max(0, wait_seconds ?? 10) * 1_000)
-        )
-      ]);
-      return textResult({
-        runId: run.id,
-        status: run.status,
-        startedAt: run.startedAt,
-        finishedAt: run.finishedAt,
-        result: run.result,
-        error: run.error
-      });
+      const stored = core.store.getAnalysisRun(run_id);
+      return stored ? textResult(stored) : errorResult(new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "分析运行不存在。"));
+    }
+  );
+
+  mcp.registerTool(
+    "cancel_analysis_run",
+    { title: "Cancel saved analysis task", description: "Cancel a queued, waiting or running analysis task. Already registered artifacts and evidence are retained.", inputSchema: z.object({ run_id: z.string().uuid() }) },
+    async ({ run_id }) => {
+      const task = tasks.cancel(run_id);
+      return task ? textResult(await waitForTask(tasks, task.id, 0)) : errorResult(new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "分析运行不存在。"));
     }
   );
 

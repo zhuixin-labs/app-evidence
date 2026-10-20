@@ -15,7 +15,8 @@ export class EngineClient {
 
   constructor(
     private readonly executable: string,
-    private readonly childEnv: NodeJS.ProcessEnv = {}
+    private readonly childEnv: NodeJS.ProcessEnv = {},
+    private readonly onChild?: (child: ChildProcessWithoutNullStreams) => void
   ) {}
 
   async start(workspacePath: string): Promise<void> {
@@ -31,6 +32,7 @@ export class EngineClient {
         APPTRACE_WORKSPACE_ROOT: workspacePath
       }
     });
+    this.onChild?.(this.child);
     const lines = readline.createInterface({ input: this.child.stdout });
     lines.on("line", (line) => {
       const parsed = engineResponseSchema.safeParse(JSON.parse(line));

@@ -10,6 +10,7 @@
     "build": "pnpm --filter @zhuixin/shared build && pnpm --filter @zhuixin/protocol build && pnpm --filter @zhuixin/engine-client build && pnpm --filter @zhuixin/metadata build && pnpm --filter @zhuixin/mcp build && pnpm --filter @zhuixin/cli build",
     "test": "pnpm --filter @zhuixin/shared build && pnpm --filter @zhuixin/protocol build && pnpm --filter @zhuixin/engine-client build && pnpm --filter @zhuixin/metadata build && pnpm --filter @zhuixin/engine-client test && pnpm exec vitest run packages/cli/tests packages/metadata/tests packages/mcp/tests",
     "test:mcp": "node scripts/smoke-mcp.mjs",
+    "test:auth-resume": "node scripts/verify-auth-resume.mjs",
     "cli": "node packages/cli/dist/index.js",
     "mcp": "node packages/mcp/dist/index.js"
   },

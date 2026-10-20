@@ -2,16 +2,19 @@ import { randomUUID } from "node:crypto";
 import { spawn, type IPty } from "node-pty";
 import type { CoreEvent } from "@zhuixin/shared";
 import { fail } from "../errors.js";
+import type { CoreConfig } from "../config.js";
+import { requireBackgroundCredentials } from "../account/ipatool.js";
 
 export class TerminalManager {
   private readonly sessions = new Map<string, IPty>();
 
   constructor(
-    private readonly ipatoolPath: string,
+    private readonly config: CoreConfig,
     private readonly emit: (event: CoreEvent) => void
   ) {}
 
-  start(kind: "ipatool-auth"): { sessionId: string } {
+  async start(kind: "ipatool-auth"): Promise<{ sessionId: string }> {
+    await requireBackgroundCredentials(this.config);
     if (kind !== "ipatool-auth") {
       fail("UNSUPPORTED_TERMINAL", `未注册的终端类型：${kind}`);
     }
@@ -19,7 +22,7 @@ export class TerminalManager {
     const sessionId = randomUUID();
     let child: IPty;
     try {
-      child = spawn(this.ipatoolPath, ["auth", "login"], {
+      child = spawn(this.config.ipatoolPath, ["auth", "login"], {
         name: "xterm-256color",
         cols: 100,
         rows: 30,

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessByStdio } from "node:child_process";
 import path from "node:path";
 import type { Readable } from "node:stream";
+import { trackChild } from "./children.js";
 
 export interface CommandResult {
   code: number | null;
@@ -64,6 +65,7 @@ export function runCommand(
         windowsVerbatimArguments: spec.verbatim,
         signal: options.signal
       });
+      trackChild(child);
     } catch (error) {
       resolve({
         code: null,

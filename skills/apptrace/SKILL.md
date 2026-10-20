@@ -24,14 +24,15 @@ When the user provides an App Store URL or App ID and asks what the app uses,
 what it contains, or for a report:
 
 1. Call `analyze_app` with the source and the smallest useful set of goals.
-   If it returns `awaiting_setup`, preserve the complete `resume.arguments`.
-   Follow `next_tool` automatically: `prepare_environment` installs the fixed
-   toolchain, `open_login` opens the user's local Windows sign-in window, and
-   `get_setup_status(wait_seconds=20)` waits for progress. Report meaningful
-   stage changes; never ask the user to run installation commands that a tool
-   can run. When state is `ready`, call `analyze_app` with the saved arguments.
-   This is agent-driven resumption, not an independently scheduled analysis.
-   When analysis is running it returns `runId`.
+   Retain its `runId` from the first response, including `queued`, `preparing`
+   and `awaiting_auth`. A persistent local worker installs missing tools, opens
+   Windows sign-in once and resumes the original task after background account
+   verification. Poll `get_analysis_run(run_id=runId, wait_seconds=20)` until
+   completed or failed. Do not end the turn just because login is pending and
+   do not ask the user to confirm completion or resend `analyze_app`.
+   Report meaningful stage changes; credentials belong only in the local window.
+   If `stage=login_cancelled`, explain that the task is saved and wait for an
+   explicit retry; do not reopen the window automatically.
 2. Use `get_analysis_run` to wait for or retrieve the completed result.
 3. Prefer goals `tech_stack`, `feature_map`, and `report` for a first pass.
 4. Add `network` when the user asks about APIs or data flow.
@@ -45,15 +46,26 @@ what it contains, or for a report:
 If a tool returns `AUTH_REQUIRED` or `KEYCHAIN_LOCKED`:
 
 1. Call `open_login`. Tell the user to enter credentials only in the local window.
-2. Poll `get_setup_status(wait_seconds=20, require_account=true)` while `login_pending`; do not open
-   repeated windows. When ready, resume the saved request without asking the
-   user to repeat their goal.
+2. For an existing analysis task, poll `get_analysis_run` with its saved ID;
+   the worker resumes automatically. For standalone setup, poll
+   `get_setup_status(wait_seconds=20, require_account=true)`. Do not open repeated
+   windows or ask the user to repeat their goal.
 3. Never ask for, capture, screenshot, log, or relay passwords, verification
    codes, keychain passphrases, cookies, or tokens. Only the user handles them.
 4. If a login attempt is cancelled or fails, explain the state and wait for the
    user to request another attempt. Do not repeatedly reopen a dismissed window.
-5. On hosts without automatic login windows, give the single fallback command
-   `apptrace auth login` and resume after the user confirms completion.
+5. On hosts without automatic login windows, give the fallback command
+   `apptrace auth login` and keep querying the saved task. Confirmation in chat
+   is not a substitute for background account verification.
+
+Windows requires the AppTrace DPAPI adapter. `IPATOOL_UPDATE_REQUIRED` means the
+managed tool needs an update or a custom tool path points to an old version.
+An update preserves the old file keyring but requires one local sign-in into
+the new Windows-user-protected store. `CREDENTIAL_ACCESS_FAILED` means the store
+cannot be read/decrypted; do not overwrite it or treat that as logged out.
+Use `cancel_analysis_run` only when the user requests cancellation. Waiting
+tasks survive MCP disconnection; after 30 idle minutes a worker stops waiting
+and retains the task, resumed by the next MCP connection or explicit login.
 
 For `failed`, distinguish account-check failure from installation failure.
 Do not infer that the user is logged out from a timeout or unknown response.

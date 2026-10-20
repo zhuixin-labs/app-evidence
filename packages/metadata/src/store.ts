@@ -357,6 +357,7 @@ export class SqliteStore implements Store {
     if (!db) throw new Error("node:sqlite is not available");
     this.db = db;
     this.db.exec("PRAGMA journal_mode = WAL;");
+    this.db.exec("PRAGMA busy_timeout = 5000;");
     this.db.exec(SCHEMA);
   }
 

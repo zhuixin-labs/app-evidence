@@ -1,4 +1,4 @@
-import { OnboardingService, type SetupStatus } from "@zhuixin/metadata";
+import { OnboardingService, recoverAnalysisTasks, loadConfig, type SetupStatus } from "@zhuixin/metadata";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
@@ -32,15 +32,9 @@ export function registerOnboarding(mcp: McpServer, service: OnboardingService): 
     title: "Open local Apple sign-in window",
     description: "Open a visible Windows sign-in terminal for the user. Reuses an active sign-in window. Credentials and terminal output never enter MCP. Poll get_setup_status afterwards, then resume the original analysis. Other hosts return a local-terminal fallback.",
     inputSchema: z.object({})
-  }, async () => result(await service.openLogin()));
-}
-
-export function setupResponse(status: SetupStatus, input: Record<string, unknown>) {
-  return {
-    status: "awaiting_setup",
-    setup: status,
-    next_tool: status.next_tool,
-    resume: { tool: "analyze_app", arguments: input },
-    nextAction: "Agent 应按 next_tool 继续准备；ready 后用 resume.arguments 重发 analyze_app。无需用户重复需求；不要向用户索取凭据。"
-  };
+  }, async () => {
+    const status = await service.openLogin();
+    await recoverAnalysisTasks(loadConfig());
+    return result(status);
+  });
 }

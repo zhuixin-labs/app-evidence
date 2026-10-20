@@ -18,6 +18,8 @@ import { CoreFailure, fail } from "../errors.js";
 import type { CoreConfig } from "../config.js";
 import type { Store } from "../store.js";
 import type { WorkspaceService } from "../workspace.js";
+import { requireBackgroundCredentials, credentialFailure } from "../account/ipatool.js";
+import { trackChild } from "../process/children.js";
 
 type LogLevel = JobEvent["level"];
 type LineHandler = (stream: "stdout" | "stderr", line: string) => void;
@@ -40,7 +42,8 @@ function redact(value: string): string {
 
 function classifyIpatoolFailure(output: string): CoreFailure {
   const text = output.toLowerCase();
-  if (text.includes("passphrase") || text.includes("unlock")) {
+  if (credentialFailure(output) === "access_failed") return new CoreFailure("CREDENTIAL_ACCESS_FAILED", "Windows 凭据无法解密或读取，请检查当前用户和凭据存储；不会自动覆盖现有凭据。");
+  if (credentialFailure(output) === "locked") {
     return new CoreFailure("KEYCHAIN_LOCKED", "本地 keychain 需要解锁。");
   }
   if (text.includes("license is required") || text.includes("license required")) {
@@ -111,6 +114,7 @@ export class AcquireJobRunner {
 
   private async runAcquire(job: JobRecord, target: TargetRecord): Promise<void> {
     try {
+      await requireBackgroundCredentials(this.config);
       this.patchJob(job, {
         status: "awaiting_auth",
         progress: 5,
@@ -307,8 +311,10 @@ export class AcquireJobRunner {
       try {
         child = spawn(command, args, {
           env: { ...process.env },
-          stdio: ["ignore", "pipe", "pipe"]
+          stdio: ["ignore", "pipe", "pipe"],
+          windowsHide: true
         });
+        trackChild(child);
       } catch (error) {
         reject(
           new CoreFailure(
