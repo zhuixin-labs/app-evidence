@@ -132,7 +132,7 @@ export class AppAnalysisService {
       if (acquired.status !== "ready") {
         throw new CoreFailure(
           acquired.errorCode ?? "ACQUIRE_FAILED",
-          acquired.errorMessage ?? "应用获取失败。",
+          acquired.errorMessage ?? "App acquisition failed.",
           { jobId: acquired.id }
         );
       }
@@ -146,7 +146,7 @@ export class AppAnalysisService {
       artifact = artifactOf(detail);
     }
     if (!artifact) {
-      throw new CoreFailure("ARTIFACT_REQUIRED", "获取完成后没有找到 artifact。");
+      throw new CoreFailure("ARTIFACT_REQUIRED", "No artifact was produced by acquisition.");
     }
 
     if (!artifact.inspection || artifact.inspection.error) {
@@ -387,7 +387,7 @@ export class AppAnalysisService {
     if (!options.source?.trim()) {
       throw new CoreFailure(
         "SOURCE_REQUIRED",
-        "请提供 App Store 链接、App ID 或已有 targetId。"
+        "Provide an App Store link, app ID, or an existing targetId."
       );
     }
     const resolved = (await this.server.handle("targets:resolve", {
@@ -442,7 +442,7 @@ export class AppAnalysisService {
     while (Date.now() < deadline) {
       if (signal?.aborted) {
         await this.server.handle("jobs:cancel", { jobId });
-        throw new CoreFailure("TASK_CANCELLED", "分析任务已取消。", { jobId });
+        throw new CoreFailure("TASK_CANCELLED", "Analysis task cancelled.", { jobId });
       }
       const result = (await this.server.handle("jobs:get", {
         jobId
@@ -463,14 +463,14 @@ export class AppAnalysisService {
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    throw new CoreFailure("JOB_TIMEOUT", "任务等待超时。", { jobId });
+    throw new CoreFailure("JOB_TIMEOUT", "Timed out waiting for the job.", { jobId });
   }
 
   private requireSuccess(job: JobRecord): void {
     if (job.status === "analyzed" || job.status === "ready") return;
     throw new CoreFailure(
       job.errorCode ?? "CAPABILITY_FAILED",
-      job.errorMessage ?? `能力没有完成：${job.capabilityId}`,
+      job.errorMessage ?? `Capability did not complete: ${job.capabilityId}`,
       { jobId: job.id }
     );
   }

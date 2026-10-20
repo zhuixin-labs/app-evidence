@@ -16,7 +16,7 @@ export class TerminalManager {
   async start(kind: "ipatool-auth"): Promise<{ sessionId: string }> {
     await requireBackgroundCredentials(this.config);
     if (kind !== "ipatool-auth") {
-      fail("UNSUPPORTED_TERMINAL", `未注册的终端类型：${kind}`);
+      fail("UNSUPPORTED_TERMINAL", `Unknown terminal type: ${kind}`);
     }
 
     const sessionId = randomUUID();
@@ -36,7 +36,7 @@ export class TerminalManager {
     } catch (error) {
       fail(
         "PTY_START_FAILED",
-        `无法启动登录终端：${error instanceof Error ? error.message : String(error)}`
+        `Could not start the sign-in terminal: ${error instanceof Error ? error.message : String(error)}`
       );
     }
 
@@ -64,11 +64,11 @@ export class TerminalManager {
 
   input(sessionId: string, data: string): void {
     const child = this.sessions.get(sessionId);
-    if (!child) fail("TERMINAL_NOT_FOUND", "登录终端已经结束。");
+    if (!child) fail("TERMINAL_NOT_FOUND", "The sign-in terminal has exited.");
     try {
       child.write(data);
     } catch {
-      fail("TERMINAL_CLOSED", "登录终端不可写入。");
+      fail("TERMINAL_CLOSED", "The sign-in terminal is not writable.");
     }
   }
 

@@ -78,7 +78,7 @@ delivered separately and selected with `APPTRACE_ENGINE_PATH`.
 Start a new Agent session with the generated config and run:
 
 ```text
-分析这个 App Store 链接的技术栈和功能地图，最后生成报告。
+Analyze the tech stack and feature map of this App Store link, then generate a report.
 ```
 
 ## Platform status

@@ -14,7 +14,7 @@ const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export async function startAnalysisWorker(config: CoreConfig, id: string, cliPath = process.env.APPTRACE_CLI_PATH): Promise<void> {
   const task = new AnalysisTasks(config.workspaceRoot).get(id);
   if (!task || terminalTask(task) || task.owner && (Date.now() - task.owner.heartbeat < 15000)) return;
-  if (!cliPath || !fs.existsSync(cliPath)) throw new CoreFailure("WORKER_ENTRY_MISSING", "需要通过 apptrace mcp 启动客户端，才能在登录后自动继续任务。");
+  if (!cliPath || !fs.existsSync(cliPath)) throw new CoreFailure("WORKER_ENTRY_MISSING", "Start the client through apptrace mcp to continue tasks automatically after sign-in.");
   const env: NodeJS.ProcessEnv = { ...process.env, APPTRACE_WORKSPACE_ROOT: config.workspaceRoot, APPTRACE_IPATOOL_PATH: config.ipatoolPath, APPTRACE_ENGINE_PATH: config.enginePath, APPTRACE_ANALYSIS_ENGINE_PATH: config.analysisEnginePath };
   // An automatically discovered path must not become an explicit custom
   // override in the child; otherwise legacy tool upgrades stop at this boundary.
@@ -89,7 +89,7 @@ export async function runAnalysisWorker(config: CoreConfig, id: string, cliPath:
           if (config.hostPlatform === "win32") setup = await onboarding.openLogin();
         }
         if (config.hostPlatform !== "win32" && setup.state === "login_required") {
-          setup = { ...setup, message: "请在本地终端运行 apptrace auth login；后台验证成功后保存的任务会自动继续。" };
+          setup = { ...setup, message: "Run apptrace auth login in a local terminal; the saved task continues after background verification succeeds." };
         }
         update({ status: "awaiting_auth", stage: setup.errorCode === "LOGIN_CANCELLED_OR_FAILED" ? "login_cancelled" : "authentication", setup });
         if (setup.errorCode === "CREDENTIAL_ACCESS_FAILED" || setup.errorCode === "IPATOOL_UPDATE_REQUIRED") throw new CoreFailure(setup.errorCode, setup.message);
@@ -103,12 +103,12 @@ export async function runAnalysisWorker(config: CoreConfig, id: string, cliPath:
       force: initial.arguments.force, timeoutMs: (initial.arguments.timeout_seconds ?? 1200) * 1000,
       signal: controller.signal,
       onProgress: event => {
-        if (!update({ stage: event.step })) throw new CoreFailure("TASK_CANCELLED", "分析任务已取消。");
+        if (!update({ stage: event.step })) throw new CoreFailure("TASK_CANCELLED", "Analysis task cancelled.");
       }
     });
     update({ status: "completed", stage: "completed", result: result as unknown as Record<string, unknown>, finishedAt: new Date().toISOString() });
   } catch (error) {
-    const failure = error instanceof CoreFailure ? error : new CoreFailure("ANALYSIS_FAILED", "分析 Worker 失败；任务与已有产物已保留。");
+    const failure = error instanceof CoreFailure ? error : new CoreFailure("ANALYSIS_FAILED", "The analysis worker failed; the task and existing artifacts are retained.");
     update({ status: "failed", stage: "failed", error: { code: failure.code, message: failure.message }, finishedAt: new Date().toISOString() });
   } finally {
     clearInterval(heartbeat);

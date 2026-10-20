@@ -44,7 +44,7 @@ function usage(): void {
   console.log(`AppTrace ${version}
 
 Usage:
-  apptrace setup [--json] [--install] [--write-config <path>]
+  apptrace setup [--json] [--install] [--write-config <path>] [--restart-client]
   apptrace doctor [--json]
   apptrace auth login
   apptrace auth status
@@ -98,7 +98,7 @@ function parseGoals(value: string | undefined): AnalysisGoal[] {
   if (invalid.length > 0) {
     throw new CoreFailure(
       "INVALID_INPUT",
-      `未知分析目标：${invalid.join(", ")}。可选：${GOALS.join(", ")}`
+      `Unknown analysis goal: ${invalid.join(", ")}. Available: ${GOALS.join(", ")}`
     );
   }
   return goals as AnalysisGoal[];
@@ -114,7 +114,7 @@ function printError(error: unknown): void {
     if (error.code === "AUTH_REQUIRED" || error.code === "KEYCHAIN_LOCKED") {
       console.error("Next: apptrace auth login");
     } else if (error.code === "LICENSE_REQUIRED") {
-      console.error("Next: 在 iPhone App Store 获取或购买该应用后重试。");
+      console.error("Next: get or purchase the app in the App Store, then retry.");
     }
     return;
   }
@@ -254,7 +254,7 @@ async function installTools(
   if (process.platform === "win32" && process.arch === "x64") {
     const script = path.resolve(__dirname, "scripts/bootstrap-tools.ps1");
     if (!fs.existsSync(script)) {
-      throw new CoreFailure("TOOL_INSTALLER_MISSING", `找不到安装脚本：${script}`);
+      throw new CoreFailure("TOOL_INSTALLER_MISSING", `Installer script not found: ${script}`);
     }
     process.stderr.write(
       "Installing JDK, Ghidra and ipatool for Windows x64. This can take several minutes.\n"
@@ -276,7 +276,7 @@ async function installTools(
     if (code !== 0) {
       throw new CoreFailure(
         "TOOL_INSTALL_FAILED",
-        `工具安装失败，退出码：${code ?? "unknown"}`
+        `Tool installation failed with exit code ${code ?? "unknown"}`
       );
     }
     const launcher = createEngineLauncher(config.workspaceRoot);
@@ -286,12 +286,12 @@ async function installTools(
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new CoreFailure(
       "TOOL_INSTALL_UNSUPPORTED",
-      "自动安装器当前支持 macOS arm64 和 Windows x64；其他平台请使用 APPTRACE_ENGINE_PATH 和 APPTRACE_IPATOOL_PATH。"
+      "The automatic installer supports macOS arm64 and Windows x64. On other platforms set APPTRACE_ENGINE_PATH and APPTRACE_IPATOOL_PATH."
     );
   }
   const script = path.resolve(__dirname, "scripts/bootstrap-tools.sh");
   if (!fs.existsSync(script)) {
-    throw new CoreFailure("TOOL_INSTALLER_MISSING", `找不到安装脚本：${script}`);
+    throw new CoreFailure("TOOL_INSTALLER_MISSING", `Installer script not found: ${script}`);
   }
   process.stderr.write(
     "Installing JDK, Ghidra and ipatool. This can take several minutes.\n"
@@ -303,7 +303,7 @@ async function installTools(
   if (code !== 0) {
     throw new CoreFailure(
       "TOOL_INSTALL_FAILED",
-      `工具安装失败，退出码：${code ?? "unknown"}`
+      `Tool installation failed with exit code ${code ?? "unknown"}`
     );
   }
   const launcher = createEngineLauncher(config.workspaceRoot);
@@ -312,7 +312,7 @@ async function installTools(
 
 async function setup(json: boolean, args: string[]): Promise<void> {
   const configPath = option(args, "--write-config");
-  if (hasFlag(args, "--install-skill") && !configPath) throw new CoreFailure("CONFIG_REQUIRED", "安装 Skill 时请同时指定 --write-config。");
+  if (hasFlag(args, "--install-skill") && !configPath) throw new CoreFailure("CONFIG_REQUIRED", "--install-skill requires --write-config.");
   let config = loadConfig();
   if (hasFlag(args, "--install")) {
     await runInstallation(config, () => installTools(config, json));
@@ -362,8 +362,42 @@ command = "${escape(process.execPath)}"
 args = ["${escape(serverEntry)}"]
 env = { ${envDisplay} }
 
-首次写入配置后重载一次 Agent 客户端。
+Restart the agent client to apply. Add --restart-client to let AppTrace restart it.
 `);
+  if (configPath && hasFlag(args, "--restart-client")) {
+    const client = clientForConfig(path.resolve(configPath));
+    if (!client.app) {
+      throw new CoreFailure(
+        "RESTART_UNSUPPORTED",
+        `${client.name} has no desktop process to restart; quit and reopen it yourself.`
+      );
+    }
+    await restartClient(client.app);
+    console.log(`Restarted ${client.name}.`);
+  }
+}
+
+function clientForConfig(configPath: string): { name: string; app?: string } {
+  const normalized = configPath.replace(/\\/g, "/").toLowerCase();
+  if (normalized.includes("claude_desktop_config.json")) {
+    return { name: "Claude Desktop", app: "Claude" };
+  }
+  if (normalized.includes("/.codex/")) return { name: "Codex", app: "Codex" };
+  if (normalized.includes("/.cursor/")) return { name: "Cursor", app: "Cursor" };
+  if (normalized.endsWith(".mcp.json")) return { name: "Claude Code" };
+  return { name: "Agent client" };
+}
+
+async function restartClient(app: string): Promise<void> {
+  if (process.platform !== "darwin") {
+    throw new CoreFailure(
+      "RESTART_UNSUPPORTED",
+      "Automatic client restart is only supported on macOS; quit and reopen the client yourself."
+    );
+  }
+  await interactive("/usr/bin/osascript", ["-e", `quit app "${app}"`]);
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  await interactive("/usr/bin/open", ["-a", app]);
 }
 
 /**
@@ -385,7 +419,7 @@ async function authLogin(): Promise<void> {
   if (!ipatool) {
     throw new CoreFailure(
       "TOOL_NOT_INSTALLED",
-      `找不到 ipatool（${config.ipatoolPath}）。请先运行 apptrace setup --install，成功后再运行 apptrace auth login。`
+      `ipatool not found (${config.ipatoolPath}). Run apptrace setup --install first, then apptrace auth login.`
     );
   }
   await requireBackgroundCredentials(config);
@@ -393,7 +427,7 @@ async function authLogin(): Promise<void> {
   if (code !== 0) {
     throw new CoreFailure(
       "AUTH_FAILED",
-      `ipatool 登录没有成功，退出码：${code ?? "unknown"}`
+      `ipatool login failed with exit code ${code ?? "unknown"}`
     );
   }
   await authStatus(true);
@@ -404,7 +438,7 @@ async function authStatus(requireAuthenticated = false): Promise<void> {
   await withCore(async (core) => {
     const status = await core.handle(CHANNELS.accountStatus, { force: true }) as AccountStatus;
     printJson(status);
-    if (requireAuthenticated && !status.authenticated) throw new CoreFailure(status.errorCode ?? "BACKGROUND_AUTH_FAILED", status.message ?? "登录后后台凭据验证未通过。");
+    if (requireAuthenticated && !status.authenticated) throw new CoreFailure(status.errorCode ?? "BACKGROUND_AUTH_FAILED", status.message ?? "Background credential verification failed after sign-in.");
   });
 }
 
@@ -432,7 +466,7 @@ async function analyze(source: string | undefined, args: string[]): Promise<void
   const force = hasFlag(args, "--force");
   const targetId = option(args, "--target");
   if (!source && !targetId) {
-    throw new CoreFailure("SOURCE_REQUIRED", "缺少应用链接、ID 或 --target。");
+    throw new CoreFailure("SOURCE_REQUIRED", "Missing app link, ID, or --target.");
   }
   await withCore(async (core) => {
     const service = new AppAnalysisService(core);
@@ -537,7 +571,7 @@ async function nativeCommand(
   if (!targetId || !value) {
     throw new CoreFailure(
       "INVALID_INPUT",
-      "用法：apptrace native <search|decompile> <target-id> <query-or-function>"
+      "Usage: apptrace native <search|decompile> <target-id> <query-or-function>"
     );
   }
   await withCore(async (core) => {
@@ -562,7 +596,7 @@ async function nativeCommand(
     }
     throw new CoreFailure(
       "INVALID_INPUT",
-      "原生命令只支持 search 或 decompile。"
+      "Native commands support only search or decompile."
     );
   });
 }
@@ -593,7 +627,7 @@ async function compare(
   if (!targetId || !leftArtifactId || !rightArtifactId) {
     throw new CoreFailure(
       "INVALID_INPUT",
-      "用法：apptrace compare <target-id> <left-artifact-id> <right-artifact-id>"
+      "Usage: apptrace compare <target-id> <left-artifact-id> <right-artifact-id>"
     );
   }
   await withCore(async (core) => {
@@ -625,11 +659,11 @@ async function main(): Promise<void> {
     return;
   }
   if (command === "analysis-worker") {
-    if (!subcommand || !/^[0-9a-f-]{36}$/.test(subcommand)) throw new CoreFailure("INVALID_INPUT", "无效的分析任务标识。");
+    if (!subcommand || !/^[0-9a-f-]{36}$/.test(subcommand)) throw new CoreFailure("INVALID_INPUT", "Invalid analysis task ID.");
     return runAnalysisWorker(loadConfig(), subcommand, __filename);
   }
   if (command === "setup-worker") {
-    if (!subcommand || !/^[0-9a-f-]{36}$/.test(subcommand)) throw new CoreFailure("INVALID_INPUT", "无效的安装操作标识。");
+    if (!subcommand || !/^[0-9a-f-]{36}$/.test(subcommand)) throw new CoreFailure("INVALID_INPUT", "Invalid install operation id.");
     const config = loadConfig();
     return runInstallation(config, () => installTools(config), subcommand);
   }
@@ -658,7 +692,7 @@ async function main(): Promise<void> {
   if (command === "targets") {
     if (subcommand === "add") {
       const source = positional(args);
-      if (!source) throw new CoreFailure("SOURCE_REQUIRED", "缺少应用链接或 ID。");
+      if (!source) throw new CoreFailure("SOURCE_REQUIRED", "Missing app link or ID.");
       return addTarget(source);
     }
     if (subcommand === "list") return listTargets();
@@ -675,30 +709,30 @@ async function main(): Promise<void> {
     return analyze(source, analyzeArgs);
   }
   if (command === "report") {
-    if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "缺少 target ID。");
+    if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "Missing target ID.");
     return report(subcommand);
   }
   if (command === "jobs" && subcommand === "get") {
     const jobId = positional(args);
-    if (!jobId) throw new CoreFailure("JOB_REQUIRED", "缺少 job ID。");
+    if (!jobId) throw new CoreFailure("JOB_REQUIRED", "Missing job ID.");
     return getJob(jobId);
   }
   if (command === "search") {
-    if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "缺少 target ID。");
+    if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "Missing target ID.");
     return searchFindings(subcommand, args[0], args);
   }
   if (command === "native") return nativeCommand(subcommand, args);
   if (command === "evidence") {
-    if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "缺少 target ID。");
+    if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "Missing target ID.");
     return evidence(subcommand);
   }
   if (command === "engine" && subcommand === "install") {
     const file = args[0];
-    if (!file) throw new CoreFailure("ENGINE_REQUIRED", "缺少 engine 文件路径。");
+    if (!file) throw new CoreFailure("ENGINE_REQUIRED", "Missing engine file path.");
     return installEngine(file, args);
   }
   if (command === "compare") {
-    if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "缺少 target ID。");
+    if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "Missing target ID.");
     return compare(subcommand, args[0], args[1], args);
   }
   if (command === "capabilities") return capabilities(subcommand);
@@ -709,7 +743,7 @@ async function main(): Promise<void> {
     return;
   }
   usage();
-  throw new CoreFailure("UNKNOWN_COMMAND", `未知命令：${command}`);
+  throw new CoreFailure("UNKNOWN_COMMAND", `Unknown command: ${command}`);
 }
 
 void main().catch((error) => {

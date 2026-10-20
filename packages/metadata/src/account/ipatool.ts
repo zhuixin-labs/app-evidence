@@ -18,7 +18,7 @@ export async function requireBackgroundCredentials(config: CoreConfig): Promise<
   if (mtime !== undefined && supported.get(config.ipatoolPath) === mtime) return;
   const version = await runCommand(config.ipatoolPath, ["--version"], { timeoutMs: 5000 });
   if (version.code !== 0 || !version.stdout.includes("apptrace-dpapi-v1")) {
-    throw new CoreFailure("IPATOOL_UPDATE_REQUIRED", "Windows 需要支持 DPAPI 的 ipatool。请运行 apptrace setup --install；显式配置的旧 APPTRACE_IPATOOL_PATH/REA_IPATOOL_PATH 需移除或指向适配版本。原凭据文件会保留，升级后请在本地重新登录一次。");
+    throw new CoreFailure("IPATOOL_UPDATE_REQUIRED", "Windows requires a DPAPI-enabled ipatool. Run apptrace setup --install; remove an explicit legacy APPTRACE_IPATOOL_PATH/REA_IPATOOL_PATH or point it to the adapter. Original credentials are retained; sign in locally once after upgrading.");
   }
   if (mtime !== undefined) supported.set(config.ipatoolPath, mtime);
 }

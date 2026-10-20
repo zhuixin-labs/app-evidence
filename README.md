@@ -64,7 +64,7 @@ apptrace setup --write-config ~/.codex/config.toml --install-skill
 Your agent can run these commands for you. Reload the client's MCP servers after
 connection. These onboarding changes are a local, unpublished candidate; the
 published 0.2.0 release still has the Windows issues documented in
-[Windows first-use verification](docs/Windows首次使用验收.md).
+[Windows first-use verification](docs/windows-first-use.md).
 
 **2 · Give your agent an app to analyze**
 
@@ -180,9 +180,10 @@ can do with a target — `list_capabilities` reports exactly what your license e
 
 ## Supported today
 
-- macOS arm64 hosts, App Store (iOS) targets.
-- Windows hosts: toolchain bootstrap and analysis run; the Windows *target* provider
-  (PE/MSIX/MSI) is on the roadmap.
+- App Store (iOS) targets. The engine and REA ship with the CLI on every platform.
+- Automatic toolchain install: macOS arm64 and Windows x64 (`apptrace setup --install`).
+- Linux and macOS x64: set `APPTRACE_IPATOOL_PATH` and point Ghidra/JDK at your installs.
+- The Windows *target* provider (PE/MSIX/MSI) is on the roadmap.
 - Encrypted binaries are reported as encrypted, never presented as decompiled truth.
 
 ## Security and authorization
@@ -209,6 +210,7 @@ depend on.
 
 - [Getting started](docs/getting-started.md)
 - [MCP setup and tool reference](docs/mcp.md)
+- [Releasing and the release gate](docs/release.md)
 - [Architecture](docs/architecture.md)
 - [Security](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)

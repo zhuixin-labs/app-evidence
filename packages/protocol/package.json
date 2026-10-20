@@ -1,6 +1,6 @@
 {
   "name": "@zhuixin/protocol",
-  "version": "0.2.0",
+  "version": "0.2.3",
   "license": "Apache-2.0",
   "description": "Versioned AppTrace engine protocol",
   "repository": {

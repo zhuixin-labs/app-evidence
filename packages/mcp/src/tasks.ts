@@ -7,8 +7,8 @@ export function taskResponse(task: AnalysisTask): Record<string, unknown> {
     setup: task.setup, result: task.result, error: task.error,
     next_tool: terminalTask(task) ? undefined : "get_analysis_run",
     nextAction: terminalTask(task) ? undefined : task.stage === "login_cancelled"
-      ? "登录已取消或失败，任务已保留；等待用户明确重试后调用 open_login。"
-      : "任务由本地 Worker 自动继续。保留 runId 并调用 get_analysis_run 等待；不要要求用户确认登录完成或重发 analyze_app。"
+      ? "Sign-in was cancelled or failed. The task is saved; wait for an explicit retry before calling open_login."
+      : "The local worker continues automatically. Keep runId and wait with get_analysis_run; do not ask for sign-in confirmation or resend analyze_app."
   };
 }
 

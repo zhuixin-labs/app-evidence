@@ -17,6 +17,6 @@ test("task response retains runId and waiting guidance without exposing worker o
     expect(response).not.toHaveProperty("owner");
     expect(response).not.toHaveProperty("arguments");
     tasks.update(task.id, token, { stage: "login_cancelled" });
-    expect(taskResponse(tasks.get(task.id)!).nextAction).toContain("明确重试");
+    expect(taskResponse(tasks.get(task.id)!).nextAction).toContain("explicit retry");
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

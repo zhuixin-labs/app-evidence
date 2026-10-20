@@ -19,6 +19,26 @@ function packagedEnginePath(): string | undefined {
   }
 }
 
+/**
+ * REA is the JavaScript analysis backend. It ships as the `rea-agents`
+ * dependency, so a global install works without configuring a separate path.
+ */
+function packagedReaPath(): string | undefined {
+  try {
+    const manifestPath = requireFromHere.resolve("rea-agents/package.json");
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+      bin?: string | Record<string, string>;
+    };
+    const bin =
+      typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.rea;
+    if (!bin) return undefined;
+    const resolved = path.resolve(path.dirname(manifestPath), bin);
+    return fs.existsSync(resolved) ? resolved : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export interface CoreConfig {
   workspaceRoot: string;
   ipatoolPath: string;
@@ -72,7 +92,10 @@ export function loadConfig(
         path.join(workspaceTools, "bin", reaName),
         path.join(cwd, reaName),
         path.join(legacyRoot, reaName)
-      ]) || resolveTool("rea", env) || "rea",
+      ]) ||
+      packagedReaPath() ||
+      resolveTool("rea", env) ||
+      "rea",
     licenseToken: env.APPTRACE_LICENSE,
     hostPlatform
   };

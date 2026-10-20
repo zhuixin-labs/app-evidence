@@ -13,18 +13,18 @@ export class SourceRegistry {
       descriptor(
         "local-file",
         "windows",
-        "本地安装包",
+        "Local package",
         false,
         "preview",
-        "MSIX / APPX / EXE / MSI · 只读检查"
+        "MSIX / APPX / EXE / MSI · read-only inspection"
       ),
       descriptor(
         "direct-url",
         "windows",
-        "官方直链",
+        "Official direct link",
         false,
         "preview",
-        "HTTPS 下载 · 校验 · 不执行"
+        "HTTPS download · verify · never executed"
       ),
       descriptor(
         "microsoft-store",
@@ -32,7 +32,7 @@ export class SourceRegistry {
         "Microsoft Store",
         true,
         "evaluate",
-        "官方 API / 企业分发评估"
+        "Official API / enterprise distribution review"
       ),
       descriptor(
         "winget",
@@ -40,7 +40,7 @@ export class SourceRegistry {
         "winget",
         false,
         "evaluate",
-        "离线导出能力评估"
+        "Offline export review"
       )
     ];
   }
@@ -61,19 +61,19 @@ export class SourceRegistry {
     if (/\.(msix|appx|msi|exe|zip)$/i.test(input)) {
       fail(
         "SOURCE_NOT_ENABLED",
-        "Windows 安装包来源将在 v1.1 接入；当前只启用 App Store。",
+        "Windows package sources arrive in v1.1; only the App Store is enabled today.",
         { sourceId: "local-file" }
       );
     }
     if (/^https?:\/\//i.test(input)) {
       fail(
         "SOURCE_NOT_ENABLED",
-        "这个 URL 还不是已启用的来源；当前只支持 App Store 链接。",
+        "This URL is not an enabled source yet; only App Store links are supported.",
         { sourceId: "direct-url" }
       );
     }
 
-    fail("UNSUPPORTED_SOURCE", "没有可处理这个输入的 Source Provider。", {
+    fail("UNSUPPORTED_SOURCE", "No source provider can handle this input.", {
       providers: this.providers.map((item) => item.descriptor.id)
     });
   }

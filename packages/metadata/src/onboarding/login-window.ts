@@ -32,7 +32,7 @@ export function loginWindowStatus(): { pending: boolean; exitCode?: number } {
 /** The helper returns only a PID. The visible terminal inherits no MCP stdio. */
 export async function openLoginWindow(ipatool: string): Promise<void> {
   if (process.platform !== "win32") {
-    throw new CoreFailure("LOGIN_WINDOW_UNSUPPORTED", "此平台请在本地终端运行 apptrace auth login。");
+    throw new CoreFailure("LOGIN_WINDOW_UNSUPPORTED", "On this platform run apptrace auth login in a local terminal.");
   }
   if (loginWindowStatus().pending) return;
   const store = loginStore();
@@ -54,7 +54,7 @@ export async function openLoginWindow(ipatool: string): Promise<void> {
     const response = await runCommand(terminal, ["-NoProfile", "-EncodedCommand", encoded(launch)], { timeoutMs: 15_000 });
     const pid = Number(response.stdout.trim());
     if (response.code !== 0 || !Number.isSafeInteger(pid) || pid <= 0) {
-      throw new CoreFailure("LOGIN_WINDOW_FAILED", "无法打开登录窗口；请在本地终端运行 apptrace auth login。");
+      throw new CoreFailure("LOGIN_WINDOW_FAILED", "Could not open the sign-in window; run apptrace auth login in a local terminal.");
     }
     store.adopt(operation.token, pid);
   } catch (error) {

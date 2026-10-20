@@ -92,6 +92,9 @@ importers:
       node-pty:
         specifier: ^1.1.0
         version: 1.1.0
+      rea-agents:
+        specifier: 6.4.0
+        version: 6.4.0
     devDependencies:
       tsup:
         specifier: ^8.5.0

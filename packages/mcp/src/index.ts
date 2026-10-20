@@ -40,9 +40,9 @@ function errorResult(error: unknown) {
         );
   const nextAction =
     failure.code === "AUTH_REQUIRED" || failure.code === "KEYCHAIN_LOCKED"
-      ? "调用 open_login，随后通过 get_setup_status 等待，再恢复原请求。"
+      ? "Call open_login, poll get_setup_status, then resume the original request."
       : failure.code === "LICENSE_REQUIRED"
-        ? "请先在同一 Apple 账号的 App Store 获取该应用。"
+        ? "Get the app from the App Store with the same Apple account first."
         : undefined;
   return {
     isError: true,
@@ -138,7 +138,7 @@ export async function startMcpServer(
     async (input) => {
       if (!input.source && !input.target_id) {
         return errorResult(
-          new CoreFailure("SOURCE_REQUIRED", "请提供 source 或 target_id。")
+          new CoreFailure("SOURCE_REQUIRED", "Provide source or target_id.")
         );
       }
       try {
@@ -169,7 +169,7 @@ export async function startMcpServer(
         return textResult(await waitForTask(tasks, task.id, wait_seconds ?? 10));
       }
       const stored = core.store.getAnalysisRun(run_id);
-      return stored ? textResult(stored) : errorResult(new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "分析运行不存在。"));
+      return stored ? textResult(stored) : errorResult(new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "Analysis run not found."));
     }
   );
 
@@ -178,7 +178,7 @@ export async function startMcpServer(
     { title: "Cancel saved analysis task", description: "Cancel a queued, waiting or running analysis task. Already registered artifacts and evidence are retained.", inputSchema: z.object({ run_id: z.string().uuid() }) },
     async ({ run_id }) => {
       const task = tasks.cancel(run_id);
-      return task ? textResult(await waitForTask(tasks, task.id, 0)) : errorResult(new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "分析运行不存在。"));
+      return task ? textResult(await waitForTask(tasks, task.id, 0)) : errorResult(new CoreFailure("ANALYSIS_RUN_NOT_FOUND", "Analysis run not found."));
     }
   );
 
