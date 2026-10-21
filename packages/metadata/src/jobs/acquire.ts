@@ -73,15 +73,21 @@ export class AcquireJobRunner {
   createAcquireJob(targetId: string): JobRecord {
     const target = this.store.getTarget(targetId);
     if (!target) fail("TARGET_NOT_FOUND", "Target not found.");
-    if (target.targetRef.sourceId !== "app-store") {
-      fail("SOURCE_NOT_ENABLED", "Only the App Store acquire job is implemented.");
+    const capabilityId =
+      target.targetRef.sourceId === "app-store"
+        ? "acquire:app-store"
+        : target.targetRef.sourceId === "local-file"
+          ? "acquire:local-file"
+          : undefined;
+    if (!capabilityId) {
+      fail("SOURCE_NOT_ENABLED", `No acquire job for source ${target.targetRef.sourceId}.`);
     }
 
     const job: JobRecord = {
       id: randomUUID(),
       targetId: target.id,
       sourceId: target.targetRef.sourceId,
-      capabilityId: "acquire:app-store",
+      capabilityId,
       status: "queued",
       progress: 0,
       params: { sourceRef: target.targetRef.sourceRef },
@@ -114,6 +120,10 @@ export class AcquireJobRunner {
 
   private async runAcquire(job: JobRecord, target: TargetRecord): Promise<void> {
     try {
+      if (job.capabilityId === "acquire:local-file") {
+        await this.runLocalFile(job, target);
+        return;
+      }
       await requireBackgroundCredentials(this.config);
       this.patchJob(job, {
         status: "awaiting_auth",
@@ -240,6 +250,79 @@ export class AcquireJobRunner {
       this.log(job, "info", "IPA registered; analysis capabilities can run.", {
         sha256,
         sizeBytes
+      });
+    } catch (error) {
+      this.handleFailure(job, error);
+    }
+  }
+
+  /**
+   * Local bundles are referenced, not copied: a symlink inside the workspace keeps
+   * `resolveStoredPath` working while the user's original `.app` stays untouched.
+   */
+  private async runLocalFile(job: JobRecord, target: TargetRecord): Promise<void> {
+    const sourcePath = target.targetRef.sourceRef;
+    try {
+      if (!fs.existsSync(sourcePath) || !fs.statSync(sourcePath).isDirectory()) {
+        throw new CoreFailure("ARTIFACT_INVALID", `App bundle not found: ${sourcePath}`);
+      }
+      if (!fs.existsSync(path.join(sourcePath, "Contents", "Info.plist"))) {
+        throw new CoreFailure("ARTIFACT_INVALID", "Contents/Info.plist is missing.");
+      }
+      this.patchJob(job, { status: "inspecting", progress: 20, startedAt: now() });
+      this.log(job, "info", "Hashing the app bundle.");
+      const digest = await hashBundle(sourcePath);
+
+      const version = (target.version ?? "unknown").replace(/[^a-zA-Z0-9._-]/g, "_");
+      const linkPath = path.join(
+        this.workspace.artifactDir(target),
+        `${version}-${digest.sha256.slice(0, 12)}.app`
+      );
+      fs.mkdirSync(path.dirname(linkPath), { recursive: true, mode: 0o700 });
+      if (fs.lstatSync(linkPath, { throwIfNoEntry: false })) {
+        fs.rmSync(linkPath, { force: true });
+      }
+      fs.symlinkSync(sourcePath, linkPath, "dir");
+
+      const artifact: ArtifactRecord = {
+        id: randomUUID(),
+        targetId: target.id,
+        platform: "macos",
+        packageFormat: "app",
+        sha256: digest.sha256,
+        path: this.workspace.artifactRelativePath(target, linkPath),
+        sizeBytes: digest.sizeBytes,
+        version: target.version,
+        sourceUrl: sourcePath,
+        downloadedAt: now(),
+        isCurrent: true
+      };
+
+      this.patchJob(job, { status: "registering", progress: 90 });
+      this.store.insertArtifact(artifact);
+      this.store.setCurrentArtifact(target.id, artifact.id);
+      this.workspace.saveArtifactMetadata(target, artifact, {
+        source: {
+          provider: "local-file",
+          bundlePath: sourcePath,
+          fileCount: digest.fileCount
+        }
+      });
+      this.patchJob(job, {
+        status: "ready",
+        progress: 100,
+        result: {
+          artifactId: artifact.id,
+          sha256: digest.sha256,
+          sizeBytes: digest.sizeBytes,
+          fileCount: digest.fileCount,
+          path: artifact.path
+        },
+        finishedAt: now()
+      });
+      this.log(job, "info", "Bundle registered; analysis capabilities can run.", {
+        sha256: digest.sha256,
+        fileCount: digest.fileCount
       });
     } catch (error) {
       this.handleFailure(job, error);
@@ -397,4 +480,33 @@ async function hashFile(filePath: string): Promise<string> {
     hash.update(chunk as Buffer);
   }
   return hash.digest("hex");
+}
+
+async function hashBundle(root: string): Promise<{
+  sha256: string;
+  sizeBytes: number;
+  fileCount: number;
+}> {
+  const files: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile()) files.push(full);
+    }
+  };
+  walk(root);
+  files.sort();
+
+  const bundleHash = createHash("sha256");
+  let sizeBytes = 0;
+  for (const file of files) {
+    const relative = path.relative(root, file).split(path.sep).join("/");
+    const fileHash = await hashFile(file);
+    const size = fs.statSync(file).size;
+    sizeBytes += size;
+    bundleHash.update(`${relative}\0${size}\0${fileHash}\n`);
+  }
+  return { sha256: bundleHash.digest("hex"), sizeBytes, fileCount: files.length };
 }

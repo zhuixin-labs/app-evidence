@@ -11,12 +11,20 @@ import {
 export class EngineClient {
   private child: ChildProcessWithoutNullStreams | null = null;
   private sequence = 0;
-  private readonly pending = new Map<string, (value: EngineResponse) => void>();
+  private readonly pending = new Map<
+    string,
+    {
+      resolve: (value: EngineResponse) => void;
+      reject: (error: Error) => void;
+      timer: NodeJS.Timeout;
+    }
+  >();
 
   constructor(
     private readonly executable: string,
     private readonly childEnv: NodeJS.ProcessEnv = {},
-    private readonly onChild?: (child: ChildProcessWithoutNullStreams) => void
+    private readonly onChild?: (child: ChildProcessWithoutNullStreams) => void,
+    private readonly timeoutMs = 20 * 60_000
   ) {}
 
   async start(workspacePath: string): Promise<void> {
@@ -33,13 +41,34 @@ export class EngineClient {
       }
     });
     this.onChild?.(this.child);
+    this.child.on("error", (error) => this.failAll(error.message));
+    this.child.on("exit", (code) => {
+      this.failAll(`Engine exited${code === null ? "" : ` with code ${code}`}`);
+    });
     const lines = readline.createInterface({ input: this.child.stdout });
     lines.on("line", (line) => {
       const parsed = engineResponseSchema.safeParse(JSON.parse(line));
       if (!parsed.success) return;
-      this.pending.get(parsed.data.id)?.(parsed.data);
+      if (parsed.data.id === "unknown" && !parsed.data.ok) {
+        this.failAll(
+          parsed.data.error?.message ?? "Engine rejected the request"
+        );
+        return;
+      }
+      const entry = this.pending.get(parsed.data.id);
+      if (!entry) return;
+      clearTimeout(entry.timer);
       this.pending.delete(parsed.data.id);
+      entry.resolve(parsed.data);
     });
+  }
+
+  private failAll(message: string): void {
+    for (const entry of this.pending.values()) {
+      clearTimeout(entry.timer);
+      entry.reject(new Error(message));
+    }
+    this.pending.clear();
   }
 
   async execute(
@@ -75,12 +104,20 @@ export class EngineClient {
     };
     return new Promise((resolve, reject) => {
       if (!this.child) return reject(new Error("Engine is not running"));
-      this.pending.set(id, (response) => {
-        if (!response.ok || !response.result) {
-          reject(new Error(response.error?.message ?? "Engine request failed"));
-          return;
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`Engine request timed out after ${this.timeoutMs}ms`));
+      }, this.timeoutMs);
+      this.pending.set(id, {
+        timer,
+        reject,
+        resolve: (response) => {
+          if (!response.ok || !response.result) {
+            reject(new Error(response.error?.message ?? "Engine request failed"));
+            return;
+          }
+          resolve(response.result);
         }
-        resolve(response.result);
       });
       this.child.stdin.write(`${JSON.stringify(request)}\n`);
     });
@@ -89,6 +126,6 @@ export class EngineClient {
   close(): void {
     this.child?.kill("SIGTERM");
     this.child = null;
-    this.pending.clear();
+    this.failAll("Engine client closed");
   }
 }

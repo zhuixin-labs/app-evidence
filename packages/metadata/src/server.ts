@@ -29,6 +29,7 @@ import { fail } from "./errors.js";
 import { AcquireJobRunner } from "./jobs/acquire.js";
 import { EngineCapabilityRunner } from "./jobs/engine.js";
 import { AppStoreProvider } from "./sources/appStore.js";
+import { LocalMacAppProvider } from "./sources/localMacApp.js";
 import { SourceRegistry } from "./sources/registry.js";
 import { createStore, type Store } from "./store.js";
 import { TerminalManager } from "./terminal/manager.js";
@@ -64,7 +65,10 @@ export class CoreServer {
   constructor(private readonly options: CoreServerOptions) {
     this.workspace = new WorkspaceService(options.config.workspaceRoot);
     this.store = createStore(path.join(options.config.workspaceRoot, "workbench.sqlite"));
-    this.registry = new SourceRegistry([new AppStoreProvider(options.fetchImpl)]);
+    this.registry = new SourceRegistry([
+      new LocalMacAppProvider(),
+      new AppStoreProvider(options.fetchImpl)
+    ]);
     this.capabilityRegistry = new CapabilityRegistry(options.config);
     this.runner = new AcquireJobRunner(
       this.store,
@@ -206,9 +210,12 @@ export class CoreServer {
       case CHANNELS.jobsCreate: {
         const { targetId, capabilityId, artifactId, input } =
           createJobSchema.parse(payload);
-        if (capabilityId === "acquire:app-store") {
+        if (
+          capabilityId === "acquire:app-store" ||
+          capabilityId === "acquire:local-file"
+        ) {
           if (input || artifactId) {
-            fail("INVALID_INPUT", "acquire:app-store does not accept analysis input.");
+            fail("INVALID_INPUT", `${capabilityId} does not accept analysis input.`);
           }
           return this.runner.createAcquireJob(targetId);
         }
@@ -232,7 +239,8 @@ export class CoreServer {
         const existing = this.store.getJob(jobId);
         if (!existing) fail("JOB_NOT_FOUND", "Job not found.");
         const job =
-          existing.capabilityId === "acquire:app-store"
+          existing.capabilityId === "acquire:app-store" ||
+          existing.capabilityId === "acquire:local-file"
             ? this.runner.cancel(jobId)
             : this.capabilityRunner.cancel(jobId);
         return job;

@@ -3,6 +3,7 @@ import { z } from "zod";
 export const PROTOCOL_VERSION = "1";
 export const engineCapabilities = [
   "inspect:ipa",
+  "inspect:mac-app",
   "extract:app",
   "javascript:analyze",
   "native:inspect",

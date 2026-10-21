@@ -44,7 +44,11 @@ test("installer must upgrade an existing managed legacy binary even when all pat
   fs.mkdirSync(path.dirname(ipatool), { recursive: true });
   const engine = path.join(root, "engine.js");
   const rea = path.join(root, "rea.exe");
-  for (const file of [ipatool, engine, rea]) fs.writeFileSync(file, "fixture");
+  for (const file of [ipatool, engine, rea]) {
+    fs.writeFileSync(file, "fixture");
+    // POSIX hosts require the executable bit for resolveTool to accept the fixture.
+    fs.chmodSync(file, 0o755);
+  }
   const version = vi.spyOn(command, "runCommand").mockResolvedValue({ code: 0, stdout: "ipatool version 2.7.0", stderr: "", timedOut: false });
   try {
     const config = loadConfig({ APPTRACE_WORKSPACE_ROOT: root, APPTRACE_IPATOOL_PATH: ipatool, APPTRACE_ENGINE_PATH: engine, APPTRACE_ANALYSIS_ENGINE_PATH: rea }, "win32");
@@ -60,7 +64,10 @@ test("auto-discovered legacy tools are upgradeable while explicit custom tools s
   fs.mkdirSync(path.dirname(ipatool), { recursive: true });
   const engine = path.join(root, "engine.js");
   const rea = path.join(root, "rea.exe");
-  for (const file of [ipatool, engine, rea]) fs.writeFileSync(file, "fixture");
+  for (const file of [ipatool, engine, rea]) {
+    fs.writeFileSync(file, "fixture");
+    fs.chmodSync(file, 0o755);
+  }
   vi.spyOn(process, "cwd").mockReturnValue(root);
   vi.spyOn(command, "runCommand").mockResolvedValue({ code: 0, stdout: "ipatool version 2.7.0", stderr: "", timedOut: false });
   const env = { APPTRACE_WORKSPACE_ROOT: path.join(root, "workspace"), APPTRACE_ENGINE_PATH: engine, APPTRACE_ANALYSIS_ENGINE_PATH: rea };

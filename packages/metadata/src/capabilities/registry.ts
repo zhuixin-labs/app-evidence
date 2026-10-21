@@ -48,6 +48,16 @@ const DEFINITIONS: Definition[] = [
     builtIn: true
   },
   {
+    id: "inspect:mac-app",
+    label: "Inspect macOS app",
+    description:
+      "Contents/Info.plist, bundle layout, architectures, signature and entitlements.",
+    targetPlatforms: ["macos"],
+    packageFormats: ["app"],
+    requiresArtifact: true,
+    builtIn: true
+  },
+  {
     id: "extract:app",
     label: "Extract app",
     description: "Safely unpack the .app bundle, resources and nested frameworks.",

@@ -109,7 +109,11 @@ export class AppAnalysisService {
 
   async prepareTarget(options: AnalyzeAppOptions): Promise<{ targetId: string; requiresAccount: boolean }> {
     const target = await this.resolveTarget(options);
-    return { targetId: target.id, requiresAccount: !artifactOf(await this.detail(target.id)) };
+    const needsArtifact = !artifactOf(await this.detail(target.id));
+    return {
+      targetId: target.id,
+      requiresAccount: needsArtifact && target.targetRef.sourceId === "app-store"
+    };
   }
 
   async analyzeApp(options: AnalyzeAppOptions): Promise<AnalyzeAppResult> {
@@ -127,7 +131,12 @@ export class AppAnalysisService {
     let artifact = artifactOf(detail);
     if (!artifact) {
       progress({ step: "acquire", status: "started" });
-      const acquire = await this.createJob(target.id, "acquire:app-store");
+      const acquire = await this.createJob(
+        target.id,
+        target.targetRef.sourceId === "local-file"
+          ? "acquire:local-file"
+          : "acquire:app-store"
+      );
       const acquired = await this.waitForJob(acquire.id, timeoutMs, options.signal);
       if (acquired.status !== "ready") {
         throw new CoreFailure(
@@ -151,7 +160,10 @@ export class AppAnalysisService {
 
     if (!artifact.inspection || artifact.inspection.error) {
       progress({ step: "inspect", status: "started" });
-      const inspect = await this.createJob(target.id, "inspect:ipa");
+      const inspect = await this.createJob(
+        target.id,
+        artifact.packageFormat === "app" ? "inspect:mac-app" : "inspect:ipa"
+      );
       const inspected = await this.waitForJob(inspect.id, timeoutMs, options.signal);
       this.requireSuccess(inspected);
       completedSteps.push("inspect");
@@ -164,9 +176,11 @@ export class AppAnalysisService {
       artifact = artifactOf(detail) ?? artifact;
     }
 
-    const wantsJavascript = goals.some((goal) =>
-      ["tech_stack", "feature_map", "network"].includes(goal)
-    );
+    // macOS bundles are inspected in this release; JavaScript/Electron analysis
+    // lands with the macOS JavaScript phase.
+    const wantsJavascript =
+      target.targetRef.platform !== "macos" &&
+      goals.some((goal) => ["tech_stack", "feature_map", "network"].includes(goal));
     if (wantsJavascript) {
       const existing = options.force ? undefined : this.findAnalyzed(
         detail,

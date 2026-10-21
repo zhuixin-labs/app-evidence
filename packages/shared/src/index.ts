@@ -16,6 +16,7 @@ export type PackageFormat =
   | "msi"
   | "zip"
   | "dmg"
+  | "app"
   | "apk";
 
 export interface TargetRef {
