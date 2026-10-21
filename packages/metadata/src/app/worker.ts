@@ -8,13 +8,25 @@ import { observeChildren } from "../process/children.js";
 import { AppAnalysisService } from "./analysis.js";
 import { AnalysisTasks, terminalTask } from "./tasks.js";
 import { managedIpatool } from "../account/ipatool.js";
+import { alive } from "../onboarding/operation.js";
 
 const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function startAnalysisWorker(config: CoreConfig, id: string, cliPath = process.env.APPTRACE_CLI_PATH): Promise<void> {
-  const task = new AnalysisTasks(config.workspaceRoot).get(id);
-  if (!task || terminalTask(task) || task.owner && (Date.now() - task.owner.heartbeat < 15000)) return;
-  if (!cliPath || !fs.existsSync(cliPath)) throw new CoreFailure("WORKER_ENTRY_MISSING", "Start the client through apptrace mcp to continue tasks automatically after sign-in.");
+  const tasks = new AnalysisTasks(config.workspaceRoot);
+  const task = tasks.get(id);
+  if (!task || terminalTask(task) || task.owner && (Date.now() - task.owner.heartbeat < 15000 || [task.owner.pid, ...task.owner.children].some(alive))) return;
+  const failStartup = (code: string, message: string) => {
+    const token = tasks.claim(id);
+    if (!token) return;
+    try {
+      tasks.update(id, token, { status: "failed", stage: "failed", error: { code, message }, finishedAt: new Date().toISOString() });
+    } finally { tasks.release(id, token); }
+  };
+  if (!cliPath || !fs.existsSync(cliPath)) {
+    failStartup("WORKER_ENTRY_MISSING", "Start the client through apptrace mcp to continue tasks automatically after sign-in.");
+    return;
+  }
   const env: NodeJS.ProcessEnv = { ...process.env, APPTRACE_WORKSPACE_ROOT: config.workspaceRoot, APPTRACE_IPATOOL_PATH: config.ipatoolPath, APPTRACE_ENGINE_PATH: config.enginePath, APPTRACE_ANALYSIS_ENGINE_PATH: config.analysisEnginePath };
   // An automatically discovered path must not become an explicit custom
   // override in the child; otherwise legacy tool upgrades stop at this boundary.
@@ -23,11 +35,27 @@ export async function startAnalysisWorker(config: CoreConfig, id: string, cliPat
     delete env.REA_IPATOOL_PATH;
   }
   const child = spawn(process.execPath, [cliPath, "analysis-worker", id], {
-    detached: true, windowsHide: true, stdio: "ignore",
-    env
+    detached: true, windowsHide: true, stdio: "ignore", env
   });
-  await new Promise<void>((resolve, reject) => { child.once("spawn", resolve); child.once("error", reject); });
-  child.unref();
+  let exited = false;
+  child.once("exit", () => { exited = true; });
+  try {
+    await new Promise<void>((resolve, reject) => { child.once("spawn", resolve); child.once("error", reject); });
+    const deadline = Date.now() + 5000;
+    while (true) {
+      const current = tasks.get(id)!;
+      if (terminalTask(current) || current.owner && current.owner.token !== task.owner?.token) return;
+      if (exited) {
+        failStartup("WORKER_START_FAILED", "The analysis worker exited before claiming the saved task. Rebuild the CLI and check APPTRACE_CLI_PATH.");
+        return;
+      }
+      if (Date.now() >= deadline) throw new CoreFailure("WORKER_START_TIMEOUT", "The worker has not confirmed startup. Query get_analysis_run with the saved runId to check or recover it.", { runId: id });
+      await pause(50);
+    }
+  } catch (error) {
+    if (error instanceof CoreFailure) throw error;
+    failStartup("WORKER_START_FAILED", "The analysis worker could not be started. Check the configured Node and CLI paths.");
+  } finally { child.unref(); }
 }
 
 /** Runs outside MCP. No credentials or terminal output cross the task database. */
@@ -84,7 +112,7 @@ export async function runAnalysisWorker(config: CoreConfig, id: string, cliPath:
         let setup = await onboarding.status(true);
         if (setup.state === "ready") break;
         const current = tasks.get(id)!;
-        if (!current.loginAttempted && ["login_required", "keychain_locked"].includes(setup.state)) {
+        if (!current.loginAttempted && setup.errorCode !== "LOGIN_CANCELLED_OR_FAILED" && ["login_required", "keychain_locked"].includes(setup.state)) {
           update({ loginAttempted: true });
           if (config.hostPlatform === "win32") setup = await onboarding.openLogin();
         }
@@ -92,7 +120,7 @@ export async function runAnalysisWorker(config: CoreConfig, id: string, cliPath:
           setup = { ...setup, message: "Run apptrace auth login in a local terminal; the saved task continues after background verification succeeds." };
         }
         update({ status: "awaiting_auth", stage: setup.errorCode === "LOGIN_CANCELLED_OR_FAILED" ? "login_cancelled" : "authentication", setup });
-        if (setup.errorCode === "CREDENTIAL_ACCESS_FAILED" || setup.errorCode === "IPATOOL_UPDATE_REQUIRED") throw new CoreFailure(setup.errorCode, setup.message);
+        if (setup.state === "failed") throw new CoreFailure(setup.errorCode ?? "AUTH_CHECK_FAILED", setup.message);
         if (Date.now() >= idleDeadline) return;
         await pause(2000);
       }

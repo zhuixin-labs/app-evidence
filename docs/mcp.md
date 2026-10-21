@@ -34,6 +34,12 @@ the request or ask the user to confirm completion. `cancel_analysis_run` cancels
 the saved task. The worker survives MCP disconnects. After 30 idle minutes it
 releases its execution slot while retaining the request; a new MCP connection,
 task query or explicit login starts recovery.
+Worker startup is acknowledged through the saved task before returning. An early
+exit or missing CLI entry fails the task with `WORKER_START_FAILED` or
+`WORKER_ENTRY_MISSING`, preserving its `runId`. `WORKER_START_TIMEOUT` includes
+the saved `runId` in error details; query it to check or recover the worker.
+An account-check failure terminates the task with the original error code;
+sign-in cancellation remains saved and never automatically reopens the window.
 `prepare_environment` starts/reuses installation;
 `get_setup_status(wait_seconds=20)` waits for tools. For Apple sign-in, `open_login`
 opens a separate Windows terminal and
@@ -129,6 +135,15 @@ when to ask the user to sign in, and when a finding is blocked by encryption or 
 Install it alongside the MCP entry for the best results.
 
 ## Troubleshooting
+
+- **Source changes do not appear in MCP** — rebuild the workspace packages, then
+  reload the client's MCP server. An already running server retains loaded code.
+  Confirm the configured MCP and `APPTRACE_CLI_PATH` entries point to the same
+  installation. Updating a checkout does not update a separate global install.
+- **Client approval fails before a tool executes** — that call did not create
+  an AppTrace task; check for an existing run before retrying. Resolve the client
+  approval error before diagnosing Apple sign-in;
+  signing in cannot repair an upstream approval failure.
 
 - **Server starts and exits with no output** — the client is pointing at the package root
   instead of the MCP entry. Re-run `apptrace setup --write-config` and use its `args` path.
