@@ -9,13 +9,12 @@
  *  - Refuses to publish on a `vX.Y.Z` tag that does not match the package version.
  *  - Prints a per-package summary at the end.
  */
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const registry = "https://registry.npmjs.org/";
 const distTag = process.env.PUBLISH_DIST_TAG || "latest";
 const provenance = process.env.PUBLISH_PROVENANCE !== "0";
 const dryRun = process.env.PUBLISH_DRY_RUN === "1";
@@ -71,28 +70,18 @@ if (tagMatch && tagMatch[1] !== version) {
 console.log(`Publishing ${packages.length} packages at v${version} with dist-tag "${distTag}"`);
 console.log(`Repository version: ${rootManifest.version}`);
 
-const published = (name, candidate) => {
-  try {
-    execFileSync(
-      "npm",
-      ["view", `${name}@${candidate}`, "version", "--registry", registry],
-      { cwd: root, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" },
-    );
-    return true;
-  } catch {
-    return false;
-  }
-};
+/**
+ * Registry reads lag behind writes, so `npm view` is not a reliable
+ * "already published" check. Publish, then classify the npm rejection.
+ */
+const alreadyPublished = (output) =>
+  /EPUBLISHCONFLICT|cannot publish over|previously published|already published|cannot be republished/i.test(
+    output,
+  );
 
 for (const dir of packages) {
   const manifest = readJson(join("packages", dir, "package.json"));
   const name = manifest.name;
-
-  if (published(name, version)) {
-    console.log(`\n== ${name}@${version} already exists, skipping`);
-    summary.push([name, "skipped (already published)"]);
-    continue;
-  }
 
   const args = [
     "--filter",
@@ -108,15 +97,21 @@ for (const dir of packages) {
   if (dryRun) args.push("--dry-run");
 
   console.log(`\n== Publishing ${name}@${version}`);
-  try {
-    execFileSync("pnpm", args, { cwd: root, stdio: "inherit" });
+  const result = spawnSync("pnpm", args, { cwd: root, encoding: "utf8" });
+  process.stdout.write(result.stdout ?? "");
+  process.stderr.write(result.stderr ?? "");
+  if (result.status === 0) {
     summary.push([name, dryRun ? "dry run ok" : "published"]);
-  } catch (error) {
-    summary.push([name, "FAILED"]);
-    console.error(`\nFailed to publish ${name}@${version}`);
-    printSummary();
-    throw error;
+    continue;
   }
+  if (alreadyPublished(`${result.stdout}\n${result.stderr}`)) {
+    summary.push([name, "already published"]);
+    continue;
+  }
+  summary.push([name, "FAILED"]);
+  console.error(`\nFailed to publish ${name}@${version}`);
+  printSummary();
+  throw new Error(`pnpm publish failed for ${name}@${version}`);
 }
 
 printSummary();
