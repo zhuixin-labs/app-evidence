@@ -100,10 +100,9 @@ location.
 | Variable | Meaning |
 | --- | --- |
 | `APPTRACE_WORKSPACE_ROOT` | Where targets, artifacts, and evidence live |
-| `APPTRACE_ENGINE_PATH` | The licensed analysis engine |
+| `APPTRACE_ENGINE_PATH` | The analysis engine |
 | `APPTRACE_ANALYSIS_ENGINE_PATH` | REA binary used for JavaScript analysis |
 | `APPTRACE_IPATOOL_PATH` | ipatool binary used to download store apps |
-| `APPTRACE_LICENSE` | Signed entitlement for native analysis and comparison |
 
 ## Tools
 
@@ -148,6 +147,6 @@ Install it alongside the MCP entry for the best results.
 - **Server starts and exits with no output** — the client is pointing at the package root
   instead of the MCP entry. Re-run `apptrace setup --write-config` and use its `args` path.
 - **Tools appear but analysis fails with `CAPABILITY_UNAVAILABLE`** — the engine is not
-  installed, or the license does not cover that capability. Run `apptrace doctor`.
+  installed, or the build does not provide that capability. Run `apptrace doctor`.
 - **`LICENSE_REQUIRED`** — the Apple account does not own the app, or it is unavailable in
   that storefront.

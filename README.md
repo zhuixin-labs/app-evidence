@@ -165,19 +165,6 @@ flowchart LR
 App packages, Apple credentials, and analysis output stay on your machine. Nothing is
 uploaded to an AppTrace service, and the target app is never executed.
 
-## What's included
-
-| | Free | Pro |
-| --- | --- | --- |
-| IPA inspection, extraction, plist and Mach-O facts | ✓ | ✓ |
-| JavaScript, route, module and endpoint mapping | ✓ | ✓ |
-| Evidence-backed reports | ✓ | ✓ |
-| Native symbol search and decompilation | — | ✓ |
-| Version comparison | — | ✓ |
-
-Native analysis and version comparison require a signed license. Ask your agent what it
-can do with a target — `list_capabilities` reports exactly what your license enables.
-
 ## Supported today
 
 - App Store (iOS) targets. The engine and REA ship with the CLI on every platform.
@@ -196,15 +183,13 @@ AppTrace is for applications you own or are authorized to analyze.
 
 Read [SECURITY.md](SECURITY.md) before analyzing a third-party package.
 
-## Open source, commercially supported
+## Open source
 
-The integration layer is Apache-2.0: CLI, MCP server, engine protocol and client, the
-Target/Artifact/Evidence model, and the bundled Agent Skill. The analysis engine,
-advanced report packs, and team features are licensed separately.
+Everything in this repository is Apache-2.0: the CLI, MCP server, engine protocol and
+client, the Target/Artifact/Evidence model, and the bundled Agent Skill.
 
-That split is deliberate: the protocol stays open so your agent integration is portable,
-while the analysis engine — the part that does the hard work — remains a product you can
-depend on.
+The analysis engine runs as a compiled dependency maintained separately; this repository
+is the integration layer.
 
 ## Documentation
 
@@ -217,8 +202,7 @@ depend on.
 
 ## License
 
-Public integration packages: [Apache-2.0](LICENSE). The analysis engine: separate
-commercial license.
+[Apache-2.0](LICENSE).
 
 ---
 
