@@ -176,11 +176,9 @@ export class AppAnalysisService {
       artifact = artifactOf(detail) ?? artifact;
     }
 
-    // macOS bundles are inspected in this release; JavaScript/Electron analysis
-    // lands with the macOS JavaScript phase.
-    const wantsJavascript =
-      target.targetRef.platform !== "macos" &&
-      goals.some((goal) => ["tech_stack", "feature_map", "network"].includes(goal));
+    const wantsJavascript = goals.some((goal) =>
+      ["tech_stack", "feature_map", "network"].includes(goal)
+    );
     if (wantsJavascript) {
       const existing = options.force ? undefined : this.findAnalyzed(
         detail,
@@ -199,14 +197,34 @@ export class AppAnalysisService {
       } else {
         progress({ step: "analyze_javascript", status: "started" });
         const job = await this.createJob(target.id, "javascript:analyze");
-        const completed = await this.waitForJob(job.id, timeoutMs, options.signal);
-        this.requireSuccess(completed);
-        completedSteps.push("analyze_javascript");
-        progress({
-          step: "analyze_javascript",
-          status: "completed",
-          jobId: completed.id
-        });
+        try {
+          const completed = await this.waitForJob(job.id, timeoutMs, options.signal);
+          this.requireSuccess(completed);
+          completedSteps.push("analyze_javascript");
+          progress({
+            step: "analyze_javascript",
+            status: "completed",
+            jobId: completed.id
+          });
+        } catch (error) {
+          // Large Electron bundles can exceed the analysis budget. The bundle
+          // inspection and report are still useful, so record the gap instead
+          // of failing the whole run.
+          if (target.targetRef.platform !== "macos") throw error;
+          const message = error instanceof Error ? error.message : String(error);
+          this.server.addLimitation(
+            target.id,
+            job.id,
+            `Electron JavaScript analysis did not complete: ${message}`
+          );
+          completedSteps.push("analyze_javascript_limited");
+          progress({
+            step: "analyze_javascript",
+            status: "failed",
+            jobId: job.id,
+            message: "recorded as a limitation"
+          });
+        }
       }
     }
 

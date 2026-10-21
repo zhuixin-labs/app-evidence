@@ -1,6 +1,6 @@
 {
   "name": "@zhuixin/engine-client",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "license": "Apache-2.0",
   "description": "AppTrace client for the private analysis engine",
   "repository": {

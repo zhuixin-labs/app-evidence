@@ -87,6 +87,27 @@ export class CoreServer {
     this.account = new AccountService(options.config);
   }
 
+  /**
+   * Records a gap discovered by the analysis flow itself, so it survives into
+   * reports alongside findings produced by the engine.
+   */
+  addLimitation(targetId: string, jobId: string, message: string): void {
+    this.store.insertFindings([
+      {
+        id: randomUUID(),
+        targetId,
+        jobId,
+        evidenceId: `ev_limitation_${jobId}`,
+        type: "limitation",
+        value: message,
+        group: "analysis-limitation",
+        confidence: "exact",
+        metadata: { source: "analysis-flow" },
+        createdAt: new Date().toISOString()
+      }
+    ]);
+  }
+
   async handle(channel: string, payload: unknown): Promise<unknown> {
     switch (channel) {
       case CHANNELS.health:

@@ -70,8 +70,8 @@ const DEFINITIONS: Definition[] = [
     id: "javascript:analyze",
     label: "Analyze JS",
     description: "Statically analyze uni-app and WebView business scripts in the unpacked app.",
-    targetPlatforms: ["ios"],
-    packageFormats: ["ipa"],
+    targetPlatforms: ["ios", "macos"],
+    packageFormats: ["ipa", "app"],
     requiresArtifact: true,
     requiresRea: true
   },
