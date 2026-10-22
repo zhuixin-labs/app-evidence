@@ -16,6 +16,9 @@ interface Definition {
   targetPlatforms: TargetPlatform[];
   packageFormats?: PackageFormat[];
   hostPlatforms?: HostPlatform[];
+  /** Hosts with full coverage. Other allowed hosts still run it and report `degradedNote`. */
+  fullHostPlatforms?: HostPlatform[];
+  degradedNote?: string;
   builtIn?: boolean;
   requiresRea?: boolean;
   requiresArtifact?: boolean;
@@ -55,7 +58,10 @@ const DEFINITIONS: Definition[] = [
     targetPlatforms: ["macos"],
     packageFormats: ["app"],
     requiresArtifact: true,
-    builtIn: true
+    builtIn: true,
+    fullHostPlatforms: ["darwin"],
+    degradedNote:
+      "Code signature and entitlements need a macOS host and are skipped here. Info.plist, bundle layout and CPU architectures are still read."
   },
   {
     id: "extract:app",
@@ -212,6 +218,12 @@ export class CapabilityRegistry {
         .join(" / ")}.`;
     }
 
+    const degraded =
+      available &&
+      definition.degradedNote !== undefined &&
+      definition.fullHostPlatforms !== undefined &&
+      !definition.fullHostPlatforms.includes(this.config.hostPlatform as HostPlatform);
+
     return {
       id: definition.id,
       label: definition.label,
@@ -221,9 +233,28 @@ export class CapabilityRegistry {
       hostPlatforms,
       available,
       reason,
+      ...(degraded ? { notes: [definition.degradedNote!] } : {}),
       requiresArtifact: definition.requiresArtifact,
       requiresInput: definition.requiresInput
     };
+  }
+
+  /**
+   * Whether the capability is defined for this kind of target, ignoring the
+   * host OS and engine health. Callers use it to tell "not supported for this
+   * app yet" (skip with a limitation) from "supported but broken" (fail).
+   */
+  supports(
+    id: string,
+    platform: TargetPlatform,
+    packageFormat: PackageFormat
+  ): boolean {
+    const definition = DEFINITIONS.find((item) => item.id === (LEGACY_IDS[id] ?? id));
+    if (!definition) return false;
+    return (
+      definition.targetPlatforms.includes(platform) &&
+      (!definition.packageFormats || definition.packageFormats.includes(packageFormat))
+    );
   }
 
   list(context: CapabilityContext = {}): CapabilityDescriptor[] {

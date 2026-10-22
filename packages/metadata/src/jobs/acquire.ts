@@ -20,6 +20,7 @@ import type { Store } from "../store.js";
 import type { WorkspaceService } from "../workspace.js";
 import { requireBackgroundCredentials, credentialFailure } from "../account/ipatool.js";
 import { trackChild } from "../process/children.js";
+import { extractAppZip, type ExtractResult } from "../sources/appArchive.js";
 
 type LogLevel = JobEvent["level"];
 type LineHandler = (stream: "stdout" | "stderr", line: string) => void;
@@ -257,32 +258,58 @@ export class AcquireJobRunner {
   }
 
   /**
-   * Local bundles are referenced, not copied: a symlink inside the workspace keeps
-   * `resolveStoredPath` working while the user's original `.app` stays untouched.
+   * A local `.app` is referenced, not copied: a link inside the workspace keeps
+   * `resolveStoredPath` working while the user's original bundle stays untouched.
+   * A `.zip` is extracted into the workspace first, and the extracted bundle
+   * becomes the artifact.
    */
   private async runLocalFile(job: JobRecord, target: TargetRecord): Promise<void> {
     const sourcePath = target.targetRef.sourceRef;
     try {
-      if (!fs.existsSync(sourcePath) || !fs.statSync(sourcePath).isDirectory()) {
+      const archive = /\.zip$/i.test(sourcePath);
+      const stat = fs.statSync(sourcePath, { throwIfNoEntry: false });
+      if (!stat || (archive ? !stat.isFile() : !stat.isDirectory())) {
         throw new CoreFailure("ARTIFACT_INVALID", `App bundle not found: ${sourcePath}`);
       }
-      if (!fs.existsSync(path.join(sourcePath, "Contents", "Info.plist"))) {
+      this.patchJob(job, { status: "inspecting", progress: 10, startedAt: now() });
+
+      let bundlePath = sourcePath;
+      const limitations: string[] = [];
+      let archiveInfo: Record<string, unknown> | undefined;
+      if (archive) {
+        this.log(job, "info", "Extracting the app from the archive.");
+        const zipSha256 = await hashFile(sourcePath);
+        const extracted = await this.extractArchive(target, sourcePath, zipSha256);
+        bundlePath = extracted.appPath;
+        archiveInfo = { path: sourcePath, sha256: zipSha256 };
+        if (extracted.skippedSymlinks > 0) {
+          limitations.push(
+            `${extracted.skippedSymlinks} symbolic links in the archive were not recreated; framework aliases may be missing.`
+          );
+        }
+        if (extracted.skipped.length > 0) {
+          limitations.push(
+            `${extracted.skipped.length} archive entries cannot exist on this host and were skipped (for example ${extracted.skipped.slice(0, 3).join("; ")}).`
+          );
+        }
+      }
+      if (!fs.existsSync(path.join(bundlePath, "Contents", "Info.plist"))) {
         throw new CoreFailure("ARTIFACT_INVALID", "Contents/Info.plist is missing.");
       }
-      this.patchJob(job, { status: "inspecting", progress: 20, startedAt: now() });
+      this.patchJob(job, { progress: 20 });
       this.log(job, "info", "Hashing the app bundle.");
-      const digest = await hashBundle(sourcePath);
+      const digest = await hashBundle(bundlePath);
 
-      const version = (target.version ?? "unknown").replace(/[^a-zA-Z0-9._-]/g, "_");
-      const linkPath = path.join(
-        this.workspace.artifactDir(target),
-        `${version}-${digest.sha256.slice(0, 12)}.app`
-      );
-      fs.mkdirSync(path.dirname(linkPath), { recursive: true, mode: 0o700 });
-      if (fs.lstatSync(linkPath, { throwIfNoEntry: false })) {
-        fs.rmSync(linkPath, { force: true });
+      let artifactPath = bundlePath;
+      if (!archive) {
+        const version = (target.version ?? "unknown").replace(/[^a-zA-Z0-9._-]/g, "_");
+        artifactPath = path.join(
+          this.workspace.artifactDir(target),
+          `${version}-${digest.sha256.slice(0, 12)}.app`
+        );
+        fs.mkdirSync(path.dirname(artifactPath), { recursive: true, mode: 0o700 });
+        linkBundle(bundlePath, artifactPath);
       }
-      fs.symlinkSync(sourcePath, linkPath, "dir");
 
       const artifact: ArtifactRecord = {
         id: randomUUID(),
@@ -290,7 +317,7 @@ export class AcquireJobRunner {
         platform: "macos",
         packageFormat: "app",
         sha256: digest.sha256,
-        path: this.workspace.artifactRelativePath(target, linkPath),
+        path: this.workspace.artifactRelativePath(target, artifactPath),
         sizeBytes: digest.sizeBytes,
         version: target.version,
         sourceUrl: sourcePath,
@@ -304,7 +331,8 @@ export class AcquireJobRunner {
       this.workspace.saveArtifactMetadata(target, artifact, {
         source: {
           provider: "local-file",
-          bundlePath: sourcePath,
+          bundlePath: archive ? undefined : sourcePath,
+          archive: archiveInfo,
           fileCount: digest.fileCount
         }
       });
@@ -316,7 +344,8 @@ export class AcquireJobRunner {
           sha256: digest.sha256,
           sizeBytes: digest.sizeBytes,
           fileCount: digest.fileCount,
-          path: artifact.path
+          path: artifact.path,
+          limitations
         },
         finishedAt: now()
       });
@@ -327,6 +356,28 @@ export class AcquireJobRunner {
     } catch (error) {
       this.handleFailure(job, error);
     }
+  }
+
+  /**
+   * Extraction is keyed by the archive digest, so analyzing the same zip again
+   * reuses the previous result instead of unpacking a large bundle twice.
+   */
+  private async extractArchive(
+    target: TargetRecord,
+    zipPath: string,
+    zipSha256: string
+  ): Promise<ExtractResult> {
+    const dest = path.join(this.workspace.artifactDir(target), "extracted", zipSha256.slice(0, 12));
+    const marker = path.join(dest, ".extracted.json");
+    try {
+      const previous = JSON.parse(fs.readFileSync(marker, "utf8")) as ExtractResult;
+      if (fs.existsSync(path.join(previous.appPath, "Contents", "Info.plist"))) return previous;
+    } catch {
+      // Not extracted yet, or the marker is damaged: extract again.
+    }
+    const result = await extractAppZip(zipPath, dest);
+    fs.writeFileSync(marker, JSON.stringify(result), { mode: 0o600 });
+    return result;
   }
 
   private handleFailure(job: JobRecord, error: unknown): void {
@@ -482,29 +533,43 @@ async function hashFile(filePath: string): Promise<string> {
   return hash.digest("hex");
 }
 
-async function hashBundle(root: string): Promise<{
+/**
+ * Points the workspace at the bundle without copying it. Windows symlinks need
+ * elevation or Developer Mode, while a junction works for any user.
+ */
+export function linkBundle(sourcePath: string, linkPath: string): void {
+  if (fs.lstatSync(linkPath, { throwIfNoEntry: false })) {
+    fs.rmSync(linkPath, { force: true });
+  }
+  fs.symlinkSync(sourcePath, linkPath, process.platform === "win32" ? "junction" : "dir");
+}
+
+export async function hashBundle(root: string): Promise<{
   sha256: string;
   sizeBytes: number;
   fileCount: number;
 }> {
-  const files: string[] = [];
+  const files: Array<{ full: string; relative: string }> = [];
   const walk = (dir: string): void => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) walk(full);
-      else if (entry.isFile()) files.push(full);
+      else if (entry.isFile()) {
+        files.push({ full, relative: path.relative(root, full).split(path.sep).join("/") });
+      }
     }
   };
   walk(root);
-  files.sort();
+  // Sort the "/"-normalized path: sorting native paths orders "A\b" and "A0"
+  // differently on Windows and macOS, which would change the digest.
+  files.sort((a, b) => (a.relative < b.relative ? -1 : a.relative > b.relative ? 1 : 0));
 
   const bundleHash = createHash("sha256");
   let sizeBytes = 0;
-  for (const file of files) {
-    const relative = path.relative(root, file).split(path.sep).join("/");
-    const fileHash = await hashFile(file);
-    const size = fs.statSync(file).size;
+  for (const { full, relative } of files) {
+    const fileHash = await hashFile(full);
+    const size = fs.statSync(full).size;
     sizeBytes += size;
     bundleHash.update(`${relative}\0${size}\0${fileHash}\n`);
   }

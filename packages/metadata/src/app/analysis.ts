@@ -34,6 +34,8 @@ export interface AnalysisProgress {
 }
 
 export interface AnalyzeAppResult {
+  /** OS the analysis ran on. Some checks, such as macOS code signatures, depend on it. */
+  hostPlatform: string;
   targetId: string;
   targetName: string;
   sourceId: string;
@@ -122,6 +124,8 @@ export class AppAnalysisService {
       : (["tech_stack", "feature_map", "report"] satisfies AnalysisGoal[]);
     const timeoutMs = options.timeoutMs ?? 20 * 60_000;
     const completedSteps: string[] = [];
+    const flowLimitations: string[] = [];
+    const acquireLimitations: string[] = [];
     const progress = (event: AnalysisProgress) => options.onProgress?.(event);
 
     let target = await this.resolveTarget(options);
@@ -151,12 +155,26 @@ export class AppAnalysisService {
         status: "completed",
         jobId: acquired.id
       });
+      const reported = record(acquired.result)?.limitations;
+      if (Array.isArray(reported)) acquireLimitations.push(...reported.map(String));
       detail = await this.detail(target.id);
       artifact = artifactOf(detail);
     }
     if (!artifact) {
       throw new CoreFailure("ARTIFACT_REQUIRED", "No artifact was produced by acquisition.");
     }
+    if (acquireLimitations.length === 0) {
+      // A repeated analysis reuses the artifact, so read what the earlier acquisition reported.
+      const earlier = record(
+        detail.jobs.find((job) => job.capabilityId === "acquire:local-file" && job.status === "ready")
+          ?.result
+      )?.limitations;
+      if (Array.isArray(earlier)) acquireLimitations.push(...earlier.map(String));
+    }
+    acquireLimitations.forEach((limitation, index) => {
+      this.server.addLimitation(target.id, `acquire-limitation-${index}`, limitation, artifact!.id);
+      flowLimitations.push(limitation);
+    });
 
     if (!artifact.inspection || artifact.inspection.error) {
       progress({ step: "inspect", status: "started" });
@@ -212,11 +230,9 @@ export class AppAnalysisService {
           // of failing the whole run.
           if (target.targetRef.platform !== "macos") throw error;
           const message = error instanceof Error ? error.message : String(error);
-          this.server.addLimitation(
-            target.id,
-            job.id,
-            `Electron JavaScript analysis did not complete: ${message}`
-          );
+          const limitation = `Electron JavaScript analysis did not complete: ${message}`;
+          this.server.addLimitation(target.id, job.id, limitation, artifact.id);
+          flowLimitations.push(limitation);
           completedSteps.push("analyze_javascript_limited");
           progress({
             step: "analyze_javascript",
@@ -228,7 +244,39 @@ export class AppAnalysisService {
       }
     }
 
-    if (goals.includes("native_risk")) {
+    // The inspector reports what it could not read (for example macOS-only
+    // signature checks on a Windows host). Surface it instead of hiding it.
+    const inspectionWarnings = record(artifact.inspection)?.warnings;
+    if (Array.isArray(inspectionWarnings)) {
+      const inspectedArtifactId = artifact.id;
+      inspectionWarnings.map(String).forEach((warning, index) => {
+        this.server.addLimitation(target.id, `inspect-warning-${index}`, warning, inspectedArtifactId);
+        flowLimitations.push(warning);
+      });
+    }
+
+    const nativeSupported = this.server.capabilityRegistry.supports(
+      "native:inspect",
+      target.targetRef.platform,
+      artifact.packageFormat
+    );
+    if (goals.includes("native_risk") && !nativeSupported) {
+      // Native analysis is only defined for IPA targets today. Skip it rather
+      // than failing the run, and say so in the result and the report.
+      const limitation = `Native analysis (native_risk) is not available for ${target.targetRef.platform} ${artifact.packageFormat} targets yet; this step was skipped.`;
+      this.server.addLimitation(
+        target.id,
+        "skipped-native-inspect",
+        limitation,
+        artifact.id
+      );
+      flowLimitations.push(limitation);
+      progress({
+        step: "inspect_native",
+        status: "failed",
+        message: "skipped: unsupported for this target"
+      });
+    } else if (goals.includes("native_risk")) {
       const existing = options.force ? undefined : this.findAnalyzed(
         detail,
         ["native:inspect", "rea:inspect"],
@@ -308,6 +356,7 @@ export class AppAnalysisService {
     ].filter((value): value is string => Boolean(value));
 
     return {
+      hostPlatform: this.server.config.hostPlatform,
       targetId: target.id,
       targetName: target.name,
       sourceId: target.targetRef.sourceId,
@@ -376,7 +425,7 @@ export class AppAnalysisService {
             }
           : undefined,
       evidencePaths: [...new Set(evidencePaths)],
-      limitations,
+      limitations: [...new Set([...flowLimitations, ...limitations])],
       reportPath:
         typeof report.reportPath === "string" ? report.reportPath : undefined,
       jobs: detail.jobs.slice(0, 20).map((job) => ({

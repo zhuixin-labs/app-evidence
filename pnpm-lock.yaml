@@ -81,8 +81,8 @@ importers:
   packages/metadata:
     dependencies:
       '@zhuixin/engine':
-        specifier: ^0.2.1
-        version: 0.2.1
+        specifier: ^0.2.3
+        version: 0.2.3
       '@zhuixin/engine-client':
         specifier: workspace:*
         version: link:../engine-client
@@ -101,10 +101,16 @@ importers:
       rea-agents:
         specifier: 6.4.0
         version: 6.4.0
+      yauzl:
+        specifier: ^3.4.0
+        version: 3.4.0
     devDependencies:
       '@types/plist':
         specifier: ^3.0.5
         version: 3.0.5
+      '@types/yauzl':
+        specifier: ^3.4.0
+        version: 3.4.0
       tsup:
         specifier: ^8.5.0
         version: 8.5.0(postcss@8.5.30)(typescript@5.9.3)(yaml@2.9.0)
@@ -707,6 +713,9 @@ packages:
   '@types/plist@3.0.5':
     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
 
+  '@types/yauzl@3.4.0':
+    resolution: {integrity: sha512-NRPn5w6h8dhcnmx3YIRQcqMywY/+nND/uOkJessedcrowO3C0AssHp3tMJpxKAwOhFOo0OV1y9VtsC5hbKKBAw==}
+
   '@vitest/expect@3.2.7':
     resolution: {integrity: sha512-E8eBXaKibuvH2pSZErOjdVb5vF4PbKYcrnluBTYxEk1l/VhhwZg1kZQsdtjq+CsF5CFydf2Rdkz7jDHKSisi3w==}
 
@@ -746,8 +755,8 @@ packages:
   '@xterm/headless@6.0.0':
     resolution: {integrity: sha512-5Yj1QINYCyzrZtf8OFIHi47iQtI+0qYFPHmouEfG8dHNxbZ9Tb9YGSuLcsEwj9Z+OL75GJqPyJbyoFer80a2Hw==}
 
-  '@zhuixin/engine@0.2.1':
-    resolution: {integrity: sha512-1Dtj2lH01XhvKdk9ChrErZgmBVXFBq4me55pJYLhNXuDrlPQPfKCIzR9d5WSOxaX6zVx1wxYsutTzT+OwzQDlQ==}
+  '@zhuixin/engine@0.2.3':
+    resolution: {integrity: sha512-AD+9m4cZ4yQjqjr5im6+e+OsYKQMjzwcP7VYBIXzQqJpOmL0u9NFYQQS229y7TGTvMLHAkPQc/nwqpPCQKW5+Q==}
     engines: {node: '>=22.19'}
     hasBin: true
 
@@ -1204,6 +1213,9 @@ packages:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
     engines: {node: '>= 14.16'}
 
+  pend@1.2.0:
+    resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
+
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
@@ -1611,6 +1623,10 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
+  yauzl@3.4.0:
+    resolution: {integrity: sha512-jIH9yLR9wqr0wOS0TpBvo/g/2UgZH5qePVbjgRliiF0BYvOZyaBknKsF+x9Iht0O6sqgnB93rCICdOZFecJuDw==}
+    engines: {node: '>=12'}
+
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
@@ -1977,6 +1993,10 @@ snapshots:
       '@types/node': 24.19.2
       xmlbuilder: 15.1.1
 
+  '@types/yauzl@3.4.0':
+    dependencies:
+      '@types/node': 24.19.2
+
   '@vitest/expect@3.2.7':
     dependencies:
       '@types/chai': 5.2.3
@@ -2025,7 +2045,7 @@ snapshots:
 
   '@xterm/headless@6.0.0': {}
 
-  '@zhuixin/engine@0.2.1': {}
+  '@zhuixin/engine@0.2.3': {}
 
   '@zip.js/zip.js@2.15.0': {}
 
@@ -2458,6 +2478,8 @@ snapshots:
   pathe@2.0.3: {}
 
   pathval@2.0.1: {}
+
+  pend@1.2.0: {}
 
   picocolors@1.1.1: {}
 
@@ -2900,6 +2922,10 @@ snapshots:
   xmlbuilder@15.1.1: {}
 
   yaml@2.9.0: {}
+
+  yauzl@3.4.0:
+    dependencies:
+      pend: 1.2.0
 
   zod@3.25.76: {}
 

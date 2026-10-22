@@ -18,16 +18,18 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@zhuixin/engine": "^0.2.1",
+    "@zhuixin/engine": "^0.2.3",
     "@zhuixin/engine-client": "workspace:*",
     "@zhuixin/shared": "workspace:*",
     "bplist-parser": "^0.3.2",
     "node-pty": "^1.1.0",
     "plist": "^3.1.0",
-    "rea-agents": "6.4.0"
+    "rea-agents": "6.4.0",
+    "yauzl": "^3.4.0"
   },
   "devDependencies": {
     "@types/plist": "^3.0.5",
+    "@types/yauzl": "^3.4.0",
     "tsup": "^8.5.0"
   }
 }

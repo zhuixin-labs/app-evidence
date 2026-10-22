@@ -111,7 +111,9 @@ export async function startMcpServer(
         source: z
           .string()
           .optional()
-          .describe("App Store URL or numeric App Store ID"),
+          .describe(
+            "App Store URL or numeric App Store ID, or a local macOS app: a path to a .app folder, or to a .zip that contains one"
+          ),
         target_id: z
           .string()
           .uuid()
@@ -156,7 +158,7 @@ export async function startMcpServer(
     {
       title: "Get asynchronous analysis run",
       description:
-        "Wait for or retrieve the result of an analyze_app run.",
+        "Wait for or retrieve the result of an analyze_app run. The result includes hostPlatform and limitations: tell the user about every limitation (skipped analyses, host-dependent gaps) instead of presenting coverage as complete.",
       inputSchema: z.object({
         run_id: z.string().uuid(),
         wait_seconds: z.number().int().min(0).max(30).optional()
@@ -440,7 +442,7 @@ export async function startMcpServer(
     {
       title: "List capabilities",
       description:
-        "List analysis capabilities available for the host and an optional target.",
+        "List analysis capabilities available for the host and an optional target. A capability may be available but degraded on this host (for example macOS signature details on a non-macOS host); read each entry's notes and relay them to the user.",
       inputSchema: z.object({
         target_id: z.string().uuid().optional()
       })

@@ -142,6 +142,7 @@ The same engine without an agent in the middle:
 
 ```bash
 apptrace analyze https://apps.apple.com/cn/app/id1616124777 --goals tech_stack,feature_map,report
+apptrace analyze /Applications/Foo.app      # or ./Foo.app.zip
 apptrace targets list
 apptrace search <target-id> login
 apptrace compare <target-id> <left-artifact> <right-artifact>
@@ -168,6 +169,11 @@ uploaded to an AppTrace service, and the target app is never executed.
 ## Supported today
 
 - App Store (iOS) targets. The engine and REA ship with the CLI on every platform.
+- Local macOS apps: a `.app` folder or a `.zip` containing one, analyzed on Windows and
+  macOS without an Apple account. Bundle inspection and Electron/JavaScript analysis
+  work today; native (Mach-O) analysis is reported as a limitation, and `.dmg` is not
+  supported yet. Code-signature and entitlement details need a macOS host; on other
+  hosts the result says so in its limitations.
 - Automatic toolchain install: macOS arm64 and Windows x64 (`apptrace setup --install`).
 - Linux and macOS x64: set `APPTRACE_IPATOOL_PATH` and point Ghidra/JDK at your installs.
 - The Windows *target* provider (PE/MSIX/MSI) is on the roadmap.

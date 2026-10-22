@@ -1,6 +1,34 @@
 # macOS app support plan
 
-Status: proposal. Nothing in this document is implemented yet.
+Status: phases 1–3 shipped (0.2.4, 0.2.5). Phase 5 `.zip` is implemented; `.dmg` and
+phase 4 are not started.
+
+| Phase | State |
+| --- | --- |
+| 1 — local `.app` target | Shipped. Works on Windows and macOS hosts. |
+| 2 — bundle inspection | Wired through `inspect:mac-app`; the inspector itself lives in the private engine. |
+| 3 — JavaScript / Electron | Shipped. A timeout is recorded as a limitation instead of failing the run. |
+| 4 — native analysis | Not started. Blocked on Ghidra headless; needs a macOS host for `lipo`. |
+| 5 — `.zip` | Implemented. Extracts the single top-level `.app` into the workspace on any host. |
+| 5 — `.dmg` | Not started. Needs `hdiutil`, so macOS only. |
+
+Until phase 4 ships, `native_risk` on a macOS target is skipped and reported as a
+limitation in the result and the report; it does not fail the run. Support is decided by
+the target's platform and package format, so Windows and macOS hosts behave the same.
+
+## Host differences
+
+Bundle inspection needs `@zhuixin/engine` 0.2.3 or later. Some details depend on the
+host and are never silently dropped:
+
+- Code signature and entitlements are read with `codesign`, so only a macOS host
+  produces them. Elsewhere the result carries the warning
+  `Signature details require a macOS host.`
+- `list_capabilities` marks `inspect:mac-app` as degraded with a `notes` entry on
+  non-macOS hosts.
+- `AnalyzeAppResult.hostPlatform` records which host produced the result. Engine
+  warnings and skipped analyses appear in `limitations` and as `limitation` findings,
+  so reports and agents can relay them.
 
 ## Goal
 

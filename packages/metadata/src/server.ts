@@ -91,11 +91,19 @@ export class CoreServer {
    * Records a gap discovered by the analysis flow itself, so it survives into
    * reports alongside findings produced by the engine.
    */
-  addLimitation(targetId: string, jobId: string, message: string): void {
+  addLimitation(
+    targetId: string,
+    jobId: string,
+    message: string,
+    artifactId?: string
+  ): void {
     this.store.insertFindings([
       {
-        id: randomUUID(),
+        // Deterministic so that re-running an analysis updates the record
+        // instead of stacking duplicates in the report.
+        id: `limitation_${targetId}_${jobId}`,
         targetId,
+        ...(artifactId ? { artifactId } : {}),
         jobId,
         evidenceId: `ev_limitation_${jobId}`,
         type: "limitation",

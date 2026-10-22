@@ -6,4 +6,4 @@ allowBuilds:
   node-pty: true
 
 minimumReleaseAgeExclude:
-  - '@zhuixin/engine@0.2.1'
+  - '@zhuixin/engine@0.2.3'

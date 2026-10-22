@@ -52,7 +52,7 @@ Usage:
   apptrace setup --write-config <path> --install-skill
   apptrace targets add <app-store-url-or-id>
   apptrace targets list
-  apptrace analyze [app-store-url-or-id] [--target <target-id>] [--goals ...] [--force]
+  apptrace analyze [app-store-url-id-or-mac-app] [--target <target-id>] [--goals ...] [--force]
   apptrace report <target-id>
   apptrace jobs get <job-id>
   apptrace search <target-id> [query] [--type route,module] [--limit 50]
@@ -67,6 +67,8 @@ Usage:
 Examples:
   apptrace analyze https://apps.apple.com/cn/app/id1616124777
   apptrace analyze 1616124777 --goals tech_stack,feature_map,native_risk,report
+  apptrace analyze /Applications/Foo.app
+  apptrace analyze ./Foo.app.zip
 `);
 }
 
@@ -497,6 +499,7 @@ function printAnalysis(result: AnalyzeAppResult): void {
   console.log(`\n${result.targetName}`);
   console.log(`Target: ${result.targetId}`);
   console.log(`Artifact: ${result.artifact.sha256}`);
+  if (result.hostPlatform) console.log(`Host: ${result.hostPlatform}`);
   console.log(
     `Technology: ${result.technology?.hints.join(" / ") || "unknown"}`
   );

@@ -41,6 +41,22 @@ what it contains, or for a report:
 6. Answer from the returned structured summary first. Only inspect raw
    Evidence when the user asks a specific follow-up question.
 
+## Local macOS apps
+
+`analyze_app` also accepts a local macOS app as `source`: a path to a `.app`
+folder or to a `.zip` that contains one. Both work on Windows and macOS hosts.
+
+- A `.zip` is extracted into the AppTrace workspace (symlinks are dropped,
+  size limits apply). The app is never executed.
+- `.dmg` and native (Mach-O) decompilation are not supported for macOS apps
+  yet. `native_risk` is skipped and recorded as a limitation, not as "no risk".
+- Code-signature and entitlement details need a macOS host. On Windows the
+  result carries the warning `Signature details require a macOS host.`
+- Always read `hostPlatform` and `limitations` in the result and tell the user
+  about each one. Do not present a macOS result as complete when limitations
+  exist. Use `list_capabilities` and its `notes` to see host-dependent gaps
+  before promising a result.
+
 ## Authentication
 
 If a tool returns `AUTH_REQUIRED` or `KEYCHAIN_LOCKED`:

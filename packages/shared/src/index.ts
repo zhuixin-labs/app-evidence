@@ -187,6 +187,8 @@ export interface CapabilityDescriptor {
   hostPlatforms?: HostPlatform[];
   available: boolean;
   reason?: string;
+  /** Present when the capability runs on this host but with reduced coverage. */
+  notes?: string[];
   requiresArtifact?: boolean;
   requiresInput?: "function" | "query";
 }
