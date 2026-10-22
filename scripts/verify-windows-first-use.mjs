@@ -41,7 +41,7 @@ console.log(`Evidence: ${root}`);
 async function run(name, command, expected = 0) {
   console.log(`START ${name}`);
   const log = fs.createWriteStream(path.join(root, `${name}.log`));
-  const child = spawn(powershell, ["-NoProfile", "-Command", `${command}; exit $LASTEXITCODE`], { env, cwd: home, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(powershell, ["-NoProfile", "-Command", `${command}; if ($null -eq $LASTEXITCODE) { exit 127 }; exit $LASTEXITCODE`], { env, cwd: home, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   for (const stream of [child.stdout, child.stderr]) stream.on("data", data => { output += data; log.write(data); });
   const code = await new Promise((resolve, reject) => { child.on("error", reject); child.on("close", resolve); });
