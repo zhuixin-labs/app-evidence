@@ -264,6 +264,10 @@ export class AcquireJobRunner {
    * becomes the artifact.
    */
   private async runLocalFile(job: JobRecord, target: TargetRecord): Promise<void> {
+    if (target.targetRef.platform === "windows") {
+      await this.runLocalWindowsApp(job, target);
+      return;
+    }
     const sourcePath = target.targetRef.sourceRef;
     try {
       const archive = /\.zip$/i.test(sourcePath);
@@ -299,6 +303,11 @@ export class AcquireJobRunner {
       this.patchJob(job, { progress: 20 });
       this.log(job, "info", "Hashing the app bundle.");
       const digest = await hashBundle(bundlePath);
+      if (digest.unreadable.length > 0) {
+        limitations.push(
+          `${digest.unreadable.length} files or folders could not be read and are not part of the hash, for example ${digest.unreadable.slice(0, 3).join("; ")}.`
+        );
+      }
 
       let artifactPath = bundlePath;
       if (!archive) {
@@ -350,6 +359,81 @@ export class AcquireJobRunner {
         finishedAt: now()
       });
       this.log(job, "info", "Bundle registered; analysis capabilities can run.", {
+        sha256: digest.sha256,
+        fileCount: digest.fileCount
+      });
+    } catch (error) {
+      this.handleFailure(job, error);
+    }
+  }
+
+  /**
+   * An installed Windows program is referenced the same way as a macOS bundle:
+   * a junction in the workspace, the user's install directory untouched.
+   */
+  private async runLocalWindowsApp(job: JobRecord, target: TargetRecord): Promise<void> {
+    const sourcePath = target.targetRef.sourceRef;
+    try {
+      const stat = fs.statSync(sourcePath, { throwIfNoEntry: false });
+      if (!stat?.isDirectory()) {
+        throw new CoreFailure("ARTIFACT_INVALID", `Install directory not found: ${sourcePath}`);
+      }
+      this.patchJob(job, { status: "inspecting", progress: 10, startedAt: now() });
+      this.log(job, "info", "Hashing the install directory.");
+      const digest = await hashBundle(sourcePath);
+      const limitations: string[] = [];
+      if (digest.unreadable.length > 0) {
+        limitations.push(
+          `${digest.unreadable.length} files or folders could not be read (locked by a running program or access denied) and are not part of the hash, for example ${digest.unreadable.slice(0, 3).join("; ")}.`
+        );
+      }
+
+      const version = (target.version ?? "unknown").replace(/[^a-zA-Z0-9._-]/g, "_");
+      const artifactPath = path.join(
+        this.workspace.artifactDir(target),
+        `${version}-${digest.sha256.slice(0, 12)}.dir`
+      );
+      fs.mkdirSync(path.dirname(artifactPath), { recursive: true, mode: 0o700 });
+      linkBundle(sourcePath, artifactPath);
+
+      const artifact: ArtifactRecord = {
+        id: randomUUID(),
+        targetId: target.id,
+        platform: "windows",
+        packageFormat: "exe",
+        sha256: digest.sha256,
+        path: this.workspace.artifactRelativePath(target, artifactPath),
+        sizeBytes: digest.sizeBytes,
+        version: target.version,
+        sourceUrl: sourcePath,
+        downloadedAt: now(),
+        isCurrent: true
+      };
+
+      this.patchJob(job, { status: "registering", progress: 90 });
+      this.store.insertArtifact(artifact);
+      this.store.setCurrentArtifact(target.id, artifact.id);
+      this.workspace.saveArtifactMetadata(target, artifact, {
+        source: {
+          provider: "local-file",
+          installPath: sourcePath,
+          fileCount: digest.fileCount
+        }
+      });
+      this.patchJob(job, {
+        status: "ready",
+        progress: 100,
+        result: {
+          artifactId: artifact.id,
+          sha256: digest.sha256,
+          sizeBytes: digest.sizeBytes,
+          fileCount: digest.fileCount,
+          path: artifact.path,
+          limitations
+        },
+        finishedAt: now()
+      });
+      this.log(job, "info", "Install directory registered; analysis capabilities can run.", {
         sha256: digest.sha256,
         fileCount: digest.fileCount
       });
@@ -548,10 +632,24 @@ export async function hashBundle(root: string): Promise<{
   sha256: string;
   sizeBytes: number;
   fileCount: number;
+  /** Files or folders that could not be read, such as ones a running program holds open. */
+  unreadable: string[];
 }> {
   const files: Array<{ full: string; relative: string }> = [];
+  const unreadable: string[] = [];
   const walk = (dir: string): void => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (dir !== root && (code === "EPERM" || code === "EACCES" || code === "ENOENT")) {
+        unreadable.push(`${path.relative(root, dir).split(path.sep).join("/")}/`);
+        return;
+      }
+      throw error;
+    }
+    for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) walk(full);
@@ -567,11 +665,25 @@ export async function hashBundle(root: string): Promise<{
 
   const bundleHash = createHash("sha256");
   let sizeBytes = 0;
+  const unreadableFiles: string[] = [];
   for (const { full, relative } of files) {
-    const fileHash = await hashFile(full);
-    const size = fs.statSync(full).size;
-    sizeBytes += size;
-    bundleHash.update(`${relative}\0${size}\0${fileHash}\n`);
+    try {
+      const fileHash = await hashFile(full);
+      const size = fs.statSync(full).size;
+      sizeBytes += size;
+      bundleHash.update(`${relative}\0${size}\0${fileHash}\n`);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EBUSY" && code !== "EPERM" && code !== "EACCES" && code !== "ENOENT") {
+        throw error;
+      }
+      unreadableFiles.push(relative);
+    }
   }
-  return { sha256: bundleHash.digest("hex"), sizeBytes, fileCount: files.length };
+  return {
+    sha256: bundleHash.digest("hex"),
+    sizeBytes,
+    fileCount: files.length - unreadableFiles.length,
+    unreadable: [...unreadable, ...unreadableFiles]
+  };
 }

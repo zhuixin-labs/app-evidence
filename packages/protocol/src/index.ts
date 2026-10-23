@@ -4,6 +4,7 @@ export const PROTOCOL_VERSION = "1";
 export const engineCapabilities = [
   "inspect:ipa",
   "inspect:mac-app",
+  "inspect:pe",
   "extract:app",
   "javascript:analyze",
   "native:inspect",

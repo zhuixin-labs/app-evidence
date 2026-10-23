@@ -10,8 +10,9 @@ This checklist validates the Windows **Host** path:
 - JDK/Ghidra/ipatool discovery
 - iOS Target acquisition and analysis
 
-Windows Target Provider (PE/MSIX/MSI/Authenticode) remains v1.1 and is not
-included in this checklist.
+The local Windows app provider (install folder, PE and Authenticode inspection)
+is not part of this checklist. MSIX, MSI and installer packages are not
+supported yet.
 
 ## 1. Install prerequisites
 

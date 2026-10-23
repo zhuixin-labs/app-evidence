@@ -11,14 +11,6 @@ export class SourceRegistry {
     this.descriptors = [
       ...providers.map((provider) => provider.descriptor),
       descriptor(
-        "local-file",
-        "windows",
-        "Local package",
-        false,
-        "preview",
-        "MSIX / APPX / EXE / MSI · read-only inspection"
-      ),
-      descriptor(
         "direct-url",
         "windows",
         "Official direct link",
@@ -61,7 +53,7 @@ export class SourceRegistry {
     if (/\.(msix|appx|msi|exe|zip)$/i.test(input)) {
       fail(
         "SOURCE_NOT_ENABLED",
-        "Windows package sources arrive in v1.1; only the App Store is enabled today.",
+        "Installer and package files (.msix / .appx / .msi / .exe / .zip) are not supported yet. For a Windows app, pass the folder of an installed program, for example C:\\Program Files\\<App>.",
         { sourceId: "local-file" }
       );
     }

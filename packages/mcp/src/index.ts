@@ -112,7 +112,7 @@ export async function startMcpServer(
           .string()
           .optional()
           .describe(
-            "App Store URL or numeric App Store ID, or a local macOS app: a path to a .app folder, or to a .zip that contains one"
+            "App Store URL or numeric App Store ID, or a local app: a macOS .app folder or a .zip that contains one, or the install folder of a Windows program (for example C:\\Program Files\\Typora)"
           ),
         target_id: z
           .string()

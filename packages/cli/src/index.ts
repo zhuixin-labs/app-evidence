@@ -52,7 +52,7 @@ Usage:
   apptrace setup --write-config <path> --install-skill
   apptrace targets add <app-store-url-or-id>
   apptrace targets list
-  apptrace analyze [app-store-url-id-or-mac-app] [--target <target-id>] [--goals ...] [--force]
+  apptrace analyze [app-store-url-id-mac-app-or-windows-install-dir] [--target <target-id>] [--goals ...] [--force]
   apptrace report <target-id>
   apptrace jobs get <job-id>
   apptrace search <target-id> [query] [--type route,module] [--limit 50]
@@ -69,6 +69,7 @@ Examples:
   apptrace analyze 1616124777 --goals tech_stack,feature_map,native_risk,report
   apptrace analyze /Applications/Foo.app
   apptrace analyze ./Foo.app.zip
+  apptrace analyze "C:\Program Files\Foo"
 `);
 }
 

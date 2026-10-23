@@ -57,6 +57,26 @@ folder or to a `.zip` that contains one. Both work on Windows and macOS hosts.
   exist. Use `list_capabilities` and its `notes` to see host-dependent gaps
   before promising a result.
 
+## Local Windows apps
+
+`analyze_app` also accepts the install folder of a Windows program as `source`,
+for example `C:\Program Files\Typora` or a Squirrel folder with `app-<version>`
+inside. The folder must contain the program's `.exe`. It works on Windows and
+macOS hosts; the app is never executed.
+
+- The result covers the main executable (architecture, imports, .NET, version
+  resource, Authenticode), the technology hints read from the layout, and
+  JavaScript analysis when the app is Electron (`resources/app.asar`).
+- Installers and packages (`.exe` setup files, `.msi`, `.msix`, `.zip`) are not
+  supported. Ask the user for the folder of an installed program instead.
+- `native_risk` is skipped and recorded as a limitation. Native code is not
+  decompiled for Windows apps yet; do not describe that as "no risk".
+- When the app is not Electron, JavaScript analysis is skipped with a
+  limitation. The technology hints still answer "what is it built with".
+- Signature validity is verified only on a Windows host. Elsewhere the result
+  says the embedded signature block was read but not validated.
+- Always read `hostPlatform` and `limitations` and tell the user about each one.
+
 ## Authentication
 
 If a tool returns `AUTH_REQUIRED` or `KEYCHAIN_LOCKED`:

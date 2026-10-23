@@ -102,6 +102,39 @@ function jobResult(job: JobRecord | undefined): Record<string, unknown> {
   return record(job?.result) ?? {};
 }
 
+function inspectCapabilityFor(packageFormat: string): string {
+  if (packageFormat === "app") return "inspect:mac-app";
+  if (packageFormat === "exe") return "inspect:pe";
+  return "inspect:ipa";
+}
+
+/** Whether a Windows inspection found Electron JavaScript for `javascript:analyze` to read. */
+function hasElectronBundle(inspection: Record<string, unknown> | undefined): boolean {
+  const electron = record(record(inspection?.layout)?.electron);
+  return electron?.asar === true || electron?.unpackedApp === true;
+}
+
+/**
+ * JavaScript analysis supplies the technology summary when it ran. A Windows
+ * inspection adds hints read from the install layout and executable, so
+ * native and .NET programs still get an answer.
+ */
+function mergeTechnology(
+  scriptTechnology: Record<string, unknown> | undefined,
+  inspection: Record<string, unknown> | undefined
+): AnalyzeAppResult["technology"] {
+  const inspected = record(inspection?.technology);
+  const inspectedHints = Array.isArray(inspected?.hints) ? inspected.hints.map(String) : [];
+  const scriptHints = Array.isArray(scriptTechnology?.hints) ? scriptTechnology.hints.map(String) : [];
+  if (!scriptTechnology && inspectedHints.length === 0) return undefined;
+  return {
+    confidence: scriptTechnology
+      ? String(scriptTechnology.confidence ?? "unknown")
+      : "static layout hints",
+    hints: [...new Set([...scriptHints, ...inspectedHints])]
+  };
+}
+
 function numberValue(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
@@ -180,7 +213,7 @@ export class AppAnalysisService {
       progress({ step: "inspect", status: "started" });
       const inspect = await this.createJob(
         target.id,
-        artifact.packageFormat === "app" ? "inspect:mac-app" : "inspect:ipa"
+        inspectCapabilityFor(artifact.packageFormat)
       );
       const inspected = await this.waitForJob(inspect.id, timeoutMs, options.signal);
       this.requireSuccess(inspected);
@@ -194,10 +227,28 @@ export class AppAnalysisService {
       artifact = artifactOf(detail) ?? artifact;
     }
 
+    // A directory name says little about a Windows program; its executable's
+    // version resource carries the real product name, version and publisher.
+    target = this.refreshFromInspection(target, artifact);
+
     const wantsJavascript = goals.some((goal) =>
       ["tech_stack", "feature_map", "network"].includes(goal)
     );
-    if (wantsJavascript) {
+    const skipJavascript =
+      target.targetRef.platform === "windows" && !hasElectronBundle(artifact.inspection);
+    if (wantsJavascript && skipJavascript) {
+      // JavaScript analysis reads Electron's app.asar. A native or .NET program
+      // has none, so this is a scope note, not a failure.
+      const limitation =
+        "No Electron JavaScript bundle (resources/app.asar or resources/app) was found, so JavaScript analysis was skipped. Technology hints come from the install layout and the main executable.";
+      this.server.addLimitation(target.id, "skipped-javascript", limitation, artifact.id);
+      flowLimitations.push(limitation);
+      progress({
+        step: "analyze_javascript",
+        status: "failed",
+        message: "skipped: no Electron JavaScript bundle"
+      });
+    } else if (wantsJavascript) {
       const existing = options.force ? undefined : this.findAnalyzed(
         detail,
         ["javascript:analyze", "rea:js"],
@@ -228,7 +279,9 @@ export class AppAnalysisService {
           // Large Electron bundles can exceed the analysis budget. The bundle
           // inspection and report are still useful, so record the gap instead
           // of failing the whole run.
-          if (target.targetRef.platform !== "macos") throw error;
+          if (target.targetRef.platform !== "macos" && target.targetRef.platform !== "windows") {
+            throw error;
+          }
           const message = error instanceof Error ? error.message : String(error);
           const limitation = `Electron JavaScript analysis did not complete: ${message}`;
           this.server.addLimitation(target.id, job.id, limitation, artifact.id);
@@ -370,14 +423,7 @@ export class AppAnalysisService {
         version: artifact.version,
         buildNumber: artifact.buildNumber
       },
-      technology: technology
-        ? {
-            confidence: String(technology.confidence ?? "unknown"),
-            hints: Array.isArray(technology.hints)
-              ? technology.hints.map(String)
-              : []
-          }
-        : undefined,
+      technology: mergeTechnology(technology, record(artifact.inspection)),
       routes: routes
         ? {
             count: numberValue(routes.count) ?? 0,
@@ -477,6 +523,28 @@ export class AppAnalysisService {
     return (await this.server.handle("targets:create", {
       resolutionId: resolved.resolutionId
     })) as TargetRecord;
+  }
+
+  private refreshFromInspection(target: TargetRecord, artifact: ArtifactRecord): TargetRecord {
+    if (target.targetRef.platform !== "windows") return target;
+    const app = record(record(artifact.inspection)?.app);
+    const text = (value: unknown) =>
+      typeof value === "string" && value.trim() ? value.trim() : undefined;
+    const name = text(app?.name) ?? target.name;
+    const version = text(app?.version) ?? target.version;
+    const publisher = text(app?.publisher) ?? target.publisher;
+    if (name === target.name && version === target.version && publisher === target.publisher) {
+      return target;
+    }
+    const updated: TargetRecord = {
+      ...target,
+      name,
+      version,
+      publisher,
+      updatedAt: new Date().toISOString()
+    };
+    this.server.store.upsertTarget(updated);
+    return updated;
   }
 
   private findAnalyzed(

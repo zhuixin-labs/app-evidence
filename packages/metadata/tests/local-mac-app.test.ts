@@ -110,7 +110,7 @@ test("bundle digest is independent of the host's path separator ordering", async
   }
 
   const digest = await hashBundle(bundle);
-  expect(digest).toEqual({ sha256: expected.digest("hex"), sizeBytes: size, fileCount: entries.length });
+  expect(digest).toEqual({ unreadable: [], sha256: expected.digest("hex"), sizeBytes: size, fileCount: entries.length });
   expect(await hashBundle(bundle)).toEqual(digest);
 });
 

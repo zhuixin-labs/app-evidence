@@ -76,8 +76,8 @@ const DEFINITIONS: Definition[] = [
     id: "javascript:analyze",
     label: "Analyze JS",
     description: "Statically analyze uni-app and WebView business scripts in the unpacked app.",
-    targetPlatforms: ["ios", "macos"],
-    packageFormats: ["ipa", "app"],
+    targetPlatforms: ["ios", "macos", "windows"],
+    packageFormats: ["ipa", "app", "exe"],
     requiresArtifact: true,
     requiresRea: true
   },
@@ -119,13 +119,16 @@ const DEFINITIONS: Definition[] = [
   },
   {
     id: "inspect:pe",
-    label: "Inspect PE",
-    description: "PE headers, architectures, sections, imports and .NET hints.",
+    label: "Inspect Windows app",
+    description:
+      "Install directory layout, main executable PE headers, sections, imports, .NET hints, version resource, technology hints and Authenticode signature.",
     targetPlatforms: ["windows"],
     packageFormats: ["exe"],
     requiresArtifact: true,
-    available: false,
-    reason: "Windows target provider planned for v1.1"
+    builtIn: true,
+    fullHostPlatforms: ["win32"],
+    degradedNote:
+      "Authenticode signature validity is only verified on a Windows host. Whether a signature block is embedded is still reported."
   },
   {
     id: "inspect:msix",
@@ -135,7 +138,7 @@ const DEFINITIONS: Definition[] = [
     packageFormats: ["msix", "appx"],
     requiresArtifact: true,
     available: false,
-    reason: "Windows target provider planned for v1.1"
+    reason: "Not implemented yet for Windows targets."
   },
   {
     id: "inspect:msi",
@@ -145,7 +148,7 @@ const DEFINITIONS: Definition[] = [
     packageFormats: ["msi"],
     requiresArtifact: true,
     available: false,
-    reason: "Windows target provider planned for v1.1"
+    reason: "Not implemented yet for Windows targets."
   },
   {
     id: "signature:check",
@@ -155,7 +158,7 @@ const DEFINITIONS: Definition[] = [
     packageFormats: ["exe", "msi", "msix", "appx"],
     requiresArtifact: true,
     available: false,
-    reason: "Windows target provider planned for v1.1"
+    reason: "Not implemented yet for Windows targets. inspect:pe already reports the main executable's signature."
   }
 ];
 

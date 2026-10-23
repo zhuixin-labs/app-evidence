@@ -84,6 +84,7 @@ Analyze the tech stack and feature map of this App Store link, then generate a r
 ## Platform status
 
 - macOS arm64: development verification complete.
-- Windows x64: code paths exist, but Windows Target Provider and real-device
-  Electron/ConPTY/Ghidra validation remain v1.1 work.
+- Windows x64: host path and local Windows app targets (install folder, PE and
+  Authenticode inspection, Electron JavaScript analysis) are verified. MSIX/MSI
+  packages and native (Ghidra) analysis of Windows apps are not supported yet.
 - Linux x64: CLI/MCP best effort; not release-gated in v1.

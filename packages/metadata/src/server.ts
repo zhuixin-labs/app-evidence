@@ -30,6 +30,7 @@ import { AcquireJobRunner } from "./jobs/acquire.js";
 import { EngineCapabilityRunner } from "./jobs/engine.js";
 import { AppStoreProvider } from "./sources/appStore.js";
 import { LocalMacAppProvider } from "./sources/localMacApp.js";
+import { LocalWindowsAppProvider } from "./sources/localWindowsApp.js";
 import { SourceRegistry } from "./sources/registry.js";
 import { createStore, type Store } from "./store.js";
 import { TerminalManager } from "./terminal/manager.js";
@@ -67,6 +68,7 @@ export class CoreServer {
     this.store = createStore(path.join(options.config.workspaceRoot, "workbench.sqlite"));
     this.registry = new SourceRegistry([
       new LocalMacAppProvider(),
+      new LocalWindowsAppProvider(),
       new AppStoreProvider(options.fetchImpl)
     ]);
     this.capabilityRegistry = new CapabilityRegistry(options.config);

@@ -176,7 +176,13 @@ uploaded to an AppTrace service, and the target app is never executed.
   hosts the result says so in its limitations.
 - Automatic toolchain install: macOS arm64 and Windows x64 (`apptrace setup --install`).
 - Linux and macOS x64: set `APPTRACE_IPATOOL_PATH` and point Ghidra/JDK at your installs.
-- The Windows *target* provider (PE/MSIX/MSI) is on the roadmap.
+- Local Windows apps: the install folder of a program (for example
+  `C:\Program Files\Typora`), analyzed on Windows and macOS. AppTrace reads the main
+  executable's PE headers, imports, version resource and Authenticode signature, detects
+  the technology from the layout (Electron, .NET, Qt, WebView2, Tauri, Go and others),
+  and runs JavaScript analysis on Electron apps. Signature validity is only verified on a
+  Windows host. Native decompilation, MSIX/MSI packages and installers are not supported
+  yet; they are reported as limitations.
 - Encrypted binaries are reported as encrypted, never presented as decompiled truth.
 
 ## Security and authorization
