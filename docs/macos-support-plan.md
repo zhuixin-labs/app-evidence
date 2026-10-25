@@ -1,29 +1,32 @@
 # macOS app support plan
 
-Status: phases 1–3 shipped (0.2.4, 0.2.5). Phase 5 `.zip` is implemented; `.dmg` and
-phase 4 are not started.
+Status: phases 1–3 and `.zip` are shipped and verified on macOS arm64. Phase 4 native
+analysis and `.dmg` support are not implemented.
 
 | Phase | State |
 | --- | --- |
-| 1 — local `.app` target | Shipped. Works on Windows and macOS hosts. |
-| 2 — bundle inspection | Wired through `inspect:mac-app`; the inspector itself lives in the private engine. |
-| 3 — JavaScript / Electron | Shipped. A timeout is recorded as a limitation instead of failing the run. |
-| 4 — native analysis | Not started. Blocked on Ghidra headless; needs a macOS host for `lipo`. |
-| 5 — `.zip` | Implemented. Extracts the single top-level `.app` into the workspace on any host. |
+| 1 — local `.app` target | Shipped and verified on macOS arm64 with a system app. Works on Windows and macOS hosts. |
+| 2 — bundle inspection | Shipped and verified against system and third-party apps, including signatures and entitlements on macOS. |
+| 3 — JavaScript / Electron | Shipped and verified against an Electron app; routes/modules/IPC facts are produced and timeouts are recorded as limitations. |
+| 4 — native analysis | Not implemented. The Ghidra headless prerequisite is now verified on macOS; Mach-O thinning and capability integration remain. |
+| 5 — `.zip` | Shipped and verified on macOS arm64. Extracts the single top-level `.app` into the workspace on any host. |
 | 5 — `.dmg` | Not started. Needs `hdiutil`, so macOS only. |
 
 Until phase 4 ships, `native_risk` on a macOS target is skipped and reported as a
 limitation in the result and the report; it does not fail the run. Support is decided by
 the target's platform and package format, so Windows and macOS hosts behave the same.
+Ghidra can start and analyze a thin Mach-O on the macOS development host, so its previous
+launch failure is no longer the blocker. This does not make macOS native analysis
+available until the thinning and capability work above ships.
 
 ## Host differences
 
 Bundle inspection needs `@zhuixin/engine` 0.2.3 or later. Some details depend on the
 host and are never silently dropped:
 
-- Code signature and entitlements are read with `codesign`, so only a macOS host
-  produces them. Elsewhere the result carries the warning
-  `Signature details require a macOS host.`
+- Code signature authority, team identifier and entitlement keys are read with
+  `codesign`, so only a macOS host produces them. Elsewhere the result carries the
+  warning `Signature details require a macOS host.`
 - `list_capabilities` marks `inspect:mac-app` as degraded with a `notes` entry on
   non-macOS hosts.
 - `AnalyzeAppResult.hostPlatform` records which host produced the result. Engine
@@ -101,9 +104,10 @@ Acceptance: an Electron app yields a route/module map and at least one IPC findi
 - Reject `arm64e` slices with an explicit limitation instead of a provider crash.
 - Enable `native:inspect`, `native:search`, `native:decompile` for `macos`.
 
-Prerequisite: `rea analyze` must complete on a thinned slice. On the current machine the
-Ghidra provider reports healthy but the headless launch fails, so this phase is blocked
-until that is fixed.
+Prerequisite: `rea analyze` must complete on a thinned slice. Ghidra headless has been
+verified on the current macOS host with a 17 MB Mach-O: import, automatic analysis and
+project save all succeeded. The remaining work is to thin slices and enable the macOS
+native capabilities.
 
 ### Phase 5 — `.dmg` and `.zip`
 
@@ -132,8 +136,8 @@ until that is fixed.
 
 ## Risks
 
-- Ghidra headless is currently broken on the development machine; native analysis cannot
-  ship until it works.
+- Ghidra headless works on the development machine, but macOS native analysis still needs
+  thinning, provider integration and end-to-end acceptance.
 - Universal binaries must be thinned; doubling analysis time and disk use for both slices.
 - `codesign` and `hdiutil` are macOS-only, so parts of the feature degrade on Windows and
   Linux.

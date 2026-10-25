@@ -170,10 +170,12 @@ uploaded to an AppTrace service, and the target app is never executed.
 
 - App Store (iOS) targets. The engine and REA ship with the CLI on every platform.
 - Local macOS apps: a `.app` folder or a `.zip` containing one, analyzed on Windows and
-  macOS without an Apple account. Bundle inspection and Electron/JavaScript analysis
-  work today; native (Mach-O) analysis is reported as a limitation, and `.dmg` is not
-  supported yet. Code-signature and entitlement details need a macOS host; on other
-  hosts the result says so in its limitations.
+  macOS without an Apple account. The macOS arm64 path is verified against system and
+  third-party apps for bundle inspection and Electron/JavaScript analysis. On macOS,
+  reports also include the signature authority chain, team identifier and entitlement
+  keys. Native (Mach-O) analysis is not implemented and `.dmg` is not supported yet;
+  both are reported as limitations. Signature details require a macOS host, and other
+  hosts say so in their limitations.
 - Automatic toolchain install: macOS arm64 and Windows x64 (`apptrace setup --install`).
 - Linux and macOS x64: set `APPTRACE_IPATOOL_PATH` and point Ghidra/JDK at your installs.
 - Local Windows apps: the install folder of a program (for example

@@ -83,7 +83,10 @@ Analyze the tech stack and feature map of this App Store link, then generate a r
 
 ## Platform status
 
-- macOS arm64: development verification complete.
+- macOS arm64: development verification complete on 2026-10-25 for local `.app` and
+  `.zip` targets, bundle inspection (including signature authority, team identifier and
+  entitlement keys), Electron/JavaScript analysis and report generation. Native Mach-O
+  analysis and `.dmg` acquisition are not implemented and are reported as unsupported.
 - Windows x64: host path and local Windows app targets (install folder, PE and
   Authenticode inspection, Electron JavaScript analysis) are verified. MSIX/MSI
   packages and native (Ghidra) analysis of Windows apps are not supported yet.
