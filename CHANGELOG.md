@@ -6,6 +6,11 @@ First release where a new user can install the toolchain and reach native analys
 
 ### Fixed
 
+- The report could print "encryption not determined" while a successful native
+  inspection existed: it only looked at the 20 newest jobs, and on a real target
+  the inspection ranked 25th. The report now re-attaches the latest successful
+  inspection when the window dropped it.
+
 - `setup --install` on macOS arm64 failed after downloading 570 MB of Ghidra:
   `bootstrap-tools.sh` called `scripts/build-ghidra-arm64.sh`, which was never
   packed into the npm tarball.

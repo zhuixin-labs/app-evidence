@@ -1,0 +1,62 @@
+[
+  {
+    "cmd": "apptrace targets list",
+    "out": [
+      "TARGET ID                             PLATFORM  VERSION        NAME",
+      "cfeb0b51-0953-4360-b18a-1b89096d231b  ios       6.0.0          车工计算器",
+      "dba620e9-7a7e-4e3f-b6ac-eeee23bb8236  macos     10.16          Calculator",
+      "2624257b-11ee-494f-8948-2a2831c3764c  macos     4.31.0         BaiduNetdisk_mac",
+      "8b7e2e1c-4b23-4801-8a61-e27b4f26fb51  macos     3.4.16         iTerm2",
+      "",
+      "7 target(s) in the local workspace"
+    ]
+  },
+  {
+    "cmd": "apptrace analyze --target cfeb0b51… --force",
+    "out": [
+      "[resolve] completed — 车工计算器",
+      "[analyze_javascript] started",
+      "[analyze_javascript] completed",
+      "[report] started",
+      "[report] completed",
+      "",
+      "车工计算器",
+      "Technology: uni-app / HBuilder",
+      "Routes: 195",
+      "Modules: 17",
+      "Network endpoints: 0 (none classified; a base URL assembled at runtime is invisible to static analysis)",
+      "Native: 1485 procedures, 6203 strings",
+      "Warning: 主程序包含声明加密的切片；不要把加密区反编译结果当作可信原始实现。",
+      "Report: targets/ios-app-store-app-1616124777-cfeb0b51/reports/cdbeac13-ef5b-4776-99e1-2ac71bf6a65b.md"
+    ]
+  },
+  {
+    "cmd": "apptrace search cfeb0b51… hong --limit 4",
+    "out": [
+      "17 finding(s), 4 shown for \"hong\"",
+      "TYPE   VALUE                 LOCATION                 EVIDENCE",
+      "route  ../hong/ZuanKong      app-service.js:1:757251  ev_8392e3ae42a5dfc…",
+      "route  /pages/hong/QuBanKou  app-service.js:1:757469  ev_8392e3ae42a5dfc…",
+      "route  /pages/hong/TuoYuan   app-service.js:1:757623  ev_8392e3ae42a5dfc…",
+      "route  /pages/hong/WangWen   app-service.js:1:757322  ev_8392e3ae42a5dfc…"
+    ]
+  },
+  {
+    "cmd": "apptrace native search cfeb0b51… main",
+    "out": [
+      "native:search \"main\" (procedures, literal) — 10 matches",
+      "ADDRESS         SYMBOL",
+      "0x1002d2424     _CFRunLoopGetMain",
+      "0x1002d2a00     _NSSearchPathForDirectoriesInDomains",
+      "0x1002d2b50     _SSLSetPeerDomainName",
+      "0x1002d2c70     _UIApplicationMain",
+      "0x1002d38e8     _pthread_main_np"
+    ]
+  },
+  {
+    "cmd": "apptrace report cfeb0b51…",
+    "out": [
+      "Report: targets/ios-app-store-app-1616124777-cfeb0b51/reports/4d236468-be7f-43f4-8450-b4cb293c8444.md"
+    ]
+  }
+]

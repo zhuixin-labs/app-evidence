@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(120% 120% at 20% 0%, #131a24 0%, #0b0f14 55%, #080b0f 100%);
+    font: 15px/1.62 "SF Mono", "Menlo", "JetBrains Mono", monospace;
+    color: #c9d4e0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .win {
+    width: 1480px; height: 800px;
+    background: #0d1117;
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02) inset;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .bar {
+    height: 38px; flex: 0 0 38px;
+    background: #131a22;
+    border-bottom: 1px solid #1f2937;
+    display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .r { background: #ff5f57 } .y { background: #febc2e } .g { background: #28c840 }
+  .title { margin-left: 10px; color: #64748b; font-size: 12.5px; letter-spacing: .02em; }
+  .term { flex: 1; padding: 22px 26px; overflow: hidden; white-space: pre; }
+  .line { min-height: 24px; }
+  .cmd { color: #e6edf3; font-weight: 600; }
+  .cmd .p { color: #34d399; font-weight: 700; }
+  .key { color: #7dd3fc; }
+  .dim { color: #64748b; }
+  .warn { color: #fbbf24; }
+  .strong { color: #e6edf3; font-weight: 600; }
+  .prose { white-space: pre-wrap; word-break: break-word; margin: 2px 0; }
+  .ask { color: #e6edf3; }
+  .tool { color: #7dd3fc; }
+  .ok { color: #34d399; }
+  .cursor {
+    display: inline-block; width: 8px; height: 17px; margin-left: 2px;
+    background: #e6edf3; vertical-align: -3px; animation: none;
+  }
+  .foot {
+    position: fixed; right: 26px; bottom: 18px;
+    color: #334155; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+  <div class="win">
+    <div class="bar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="title">apptrace — ~/apps</span>
+    </div>
+    <div class="term" id="term"></div>
+  </div>
+  <div class="foot">apptrace · preview</div>
+<script>
+  const KEY = /^([A-Za-z][A-Za-z0-9 _\/-]{1,23}):/;
+
+  function classify(text) {
+    if (text.startsWith("$ ")) return "cmd";
+    if (text.startsWith("Warning:")) return "warn";
+    if (/^(\s{2,}[-·]|\s{4,})/.test(text)) return "dim";
+    return "out";
+  }
+
+  function esc(value) {
+    return String(value).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  function line(item, cursor) {
+    const entry = typeof item === "string" ? { t: item } : item;
+    const text = entry.t ?? "";
+    const kind = entry.c || classify(text);
+    let html = esc(text);
+    let cls = kind;
+    if (kind === "cmd") {
+      html = `<span class="p">$</span> ${esc(text.slice(2))}`;
+    } else if (kind === "out") {
+      const match = KEY.exec(text);
+      if (match) {
+        html = `<span class="key">${esc(match[1])}:</span>${esc(text.slice(match[0].length))}`;
+      }
+    } else if (kind === "tool") {
+      html = esc(text);
+    }
+    if (cursor) html += '<span class="cursor"></span>';
+    return `<div class="line ${cls}">${html}</div>`;
+  }
+
+  window.setState = function (state) {
+    const term = document.getElementById("term");
+    const lines = state.lines || [];
+    term.innerHTML = lines
+      .map((item, index) => line(item, state.cursor && index === lines.length - 1))
+      .join("");
+    return true;
+  };
+  window.setState({ lines: [] });
+</script>
+</body>
+</html>

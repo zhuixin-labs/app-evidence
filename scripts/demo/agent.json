@@ -1,0 +1,14 @@
+{
+  "question": "用 apptrace 的 search_findings 查 target cfeb0b51-0953-4360-b18a-1b89096d231b 中和 hong 相关的路由：告诉我一共几条、分布在几个文件；挑 4 条，逐条给出 value 以及它所在的 sourcePath 和行号。不要推测这些页面的业务含义，只给记录里的事实。控制在 8 行以内。",
+  "tool": {
+    "name": "search_findings",
+    "input": {
+      "query": "hong",
+      "target_id": "cfeb0b51-0953-4360-b18a-1b89096d231b",
+      "types": [
+        "route"
+      ]
+    }
+  },
+  "answer": "共 **17 条**，分布在 **2 个文件**：\n\n- `Pandora/apps/__UNI__5470353/www/app-service.js`（8条，行1）\n- `Pandora/apps/__UNI__5470353/www/app-config-service.js`（9条，行5）\n\n---\n\n1. `../hong/ZuanKong` | `app-service.js:1`  \n2. `/pages/hong/QuBanKou` | `app-service.js:1`  \n3. `pages/hong/ZuanKong` | `app-config-service.js:5`  \n4. `pages/hong/hong` | `app-config-service.js:5`"
+}
