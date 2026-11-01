@@ -229,6 +229,34 @@ async function main() {
     return ids.join(", ");
   });
 
+  check("installer scripts referenced by the bootstrap are shipped", () => {
+    const dist = path.dirname(cli);
+    const scripts = path.join(dist, "scripts");
+    if (!fs.existsSync(scripts)) throw new Error(`missing ${scripts}`);
+    const referenced = new Set();
+    for (const name of ["bootstrap-tools.sh", "bootstrap-tools.ps1"]) {
+      const file = path.join(scripts, name);
+      if (!fs.existsSync(file)) throw new Error(`missing ${file}`);
+      const text = fs.readFileSync(file, "utf8");
+      for (const match of text.matchAll(/\$ROOT\/scripts\/([\w.-]+)/g)) {
+        referenced.add(match[1]);
+      }
+      for (const match of text.matchAll(/Join-Path\s+\$PSScriptRoot\s+'([^']+)'/g)) {
+        referenced.add(match[1]);
+      }
+    }
+    if (!referenced.size) throw new Error("bootstrap scripts reference nothing; check the parser");
+    const missing = [...referenced].filter(
+      (name) => !fs.existsSync(path.join(scripts, name))
+    );
+    if (missing.length) {
+      throw new Error(
+        `setup --install would fail: ${missing.join(", ")} referenced by the bootstrap but not packed`
+      );
+    }
+    return [...referenced].sort().join(", ");
+  });
+
   const configPath = path.join(tmp, "mcp.json");
   check("agent config points at files that exist", () => {
     run(process.execPath, [cli, "setup", "--write-config", configPath, "--json"], {

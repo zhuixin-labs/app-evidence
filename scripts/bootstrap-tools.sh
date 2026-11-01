@@ -8,8 +8,10 @@ DOWNLOADS="${APPTRACE_DOWNLOADS_DIR:-$TOOLS/downloads}"
 mkdir -p "$DOWNLOADS" "$TOOLS"
 
 # GitHub Release assets are often slow or unreachable from mainland China.
-# The mirror only changes transport; the official SHA-256 below is still enforced.
-GITHUB_MIRROR="${GITHUB_MIRROR:-https://gh-proxy.com/}"
+# The official host is tried first; the mirror is only a fallback transport and
+# the official SHA-256 below is still enforced for every download.
+# Set GITHUB_MIRROR to "" to disable the fallback entirely.
+GITHUB_MIRROR="${GITHUB_MIRROR-https://gh-proxy.com/}"
 
 say() {
   printf '\n==> %s\n' "$*"
@@ -40,7 +42,7 @@ download() {
   if [ -n "$GITHUB_MIRROR" ]; then
     case "$url" in
       https://github.com/*)
-        candidates=("$GITHUB_MIRROR$url" "$url")
+        candidates=("$url" "$GITHUB_MIRROR$url")
         ;;
     esac
   fi
@@ -77,6 +79,22 @@ GHIDRA_ZIP="$DOWNLOADS/ghidra_12.1.4_PUBLIC_20260921.zip"
 GHIDRA_SHA256="ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db"
 GHIDRA_URL="https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip"
 
+BUILD_GHIDRA_NATIVES=0
+if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+  BUILD_GHIDRA_NATIVES=1
+  GHIDRA_NATIVES="$TOOLS/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/os/mac_arm_64"
+  if [ ! -x "$GHIDRA_NATIVES/decompile" ] || [ ! -x "$GHIDRA_NATIVES/sleigh" ]; then
+    # Fail before the download, not after it: the decompiler has to be compiled
+    # from the source tree that ships inside the Ghidra release.
+    command -v clang++ >/dev/null 2>&1 || \
+      fail "clang++ is required to build Ghidra's macOS arm64 decompiler. Install Xcode Command Line Tools: xcode-select --install"
+    command -v make >/dev/null 2>&1 || \
+      fail "make is required to build Ghidra's macOS arm64 decompiler. Install Xcode Command Line Tools: xcode-select --install"
+    [ -f "$ROOT/scripts/build-ghidra-arm64.sh" ] || \
+      fail "Installer is incomplete: $ROOT/scripts/build-ghidra-arm64.sh is missing. Reinstall @zhuixin/cli."
+  fi
+fi
+
 say "Ghidra 12.1.4"
 download "$GHIDRA_URL" "$GHIDRA_ZIP"
 verify_sha256 "$GHIDRA_ZIP" "$GHIDRA_SHA256"
@@ -85,10 +103,11 @@ if [ ! -d "$TOOLS/ghidra_12.1.4_PUBLIC" ]; then
   unzip -q "$GHIDRA_ZIP" -d "$TOOLS"
 fi
 
-if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
-  say "Ghidra macOS arm64 natives"
+if [ "$BUILD_GHIDRA_NATIVES" = "1" ]; then
+  say "Ghidra macOS arm64 natives (compiling the decompiler, several minutes)"
   APPTRACE_TOOLS_DIR="$TOOLS" APPTRACE_WORKSPACE_ROOT="$WORKSPACE_ROOT" \
-    "$ROOT/scripts/build-ghidra-arm64.sh"
+    /bin/bash "$ROOT/scripts/build-ghidra-arm64.sh" || \
+    fail "Building Ghidra's macOS arm64 decompiler failed. See $TOOLS/build-ghidra-arm64.log"
 fi
 
 # ---------------------------------------------------------------------------
