@@ -18,6 +18,12 @@ First release where a new user can install the toolchain and reach native analys
 
 ### Changed
 
+- The CLI prints for humans by default and takes `--json` for machine output:
+  `targets list`, `search`, `native search`, `native decompile`, `report`,
+  `evidence`, `capabilities`, `jobs get`, `compare` and `targets add` no longer
+  dump raw JSON at a terminal. Failures print the error code and message instead of
+  an empty result.
+
 - Reports open with a `Summary` section that states the identity, the static surface,
   the encryption verdict and what the evidence cannot establish. Encryption is read
   from the native-inspection job, so "not inspected" no longer reads as "not encrypted".

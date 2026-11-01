@@ -31,6 +31,17 @@ import {
 
 import { version } from "../package.json";
 import { writeMcpConfig } from "./mcp-config.js";
+import {
+  renderCapabilities,
+  renderCompare,
+  renderDecompile,
+  renderEvidence,
+  renderFindings,
+  renderJob,
+  renderNativeSearch,
+  renderReportJob,
+  renderTargets
+} from "./render.js";
 
 const GOALS: AnalysisGoal[] = [
   "tech_stack",
@@ -51,17 +62,19 @@ Usage:
   apptrace auth open
   apptrace setup --write-config <path> --install-skill
   apptrace targets add <app-store-url-or-id>
-  apptrace targets list
-  apptrace analyze [app-store-url-id-mac-app-or-windows-install-dir] [--target <target-id>] [--goals ...] [--force]
-  apptrace report <target-id>
-  apptrace jobs get <job-id>
-  apptrace search <target-id> [query] [--type route,module] [--limit 50]
-  apptrace native search <target-id> <query> [--kind procedures|strings]
-  apptrace native decompile <target-id> <function-name>
-  apptrace evidence <target-id>
-  apptrace compare <target-id> <left-artifact-id> <right-artifact-id> [--force]
-  apptrace capabilities [target-id]
+  apptrace targets list [--json]
+  apptrace analyze [app-store-url-id-mac-app-or-windows-install-dir] [--target <target-id>] [--goals ...] [--force] [--json]
+  apptrace report <target-id> [--json]
+  apptrace jobs get <job-id> [--json]
+  apptrace search <target-id> [query] [--type route,module] [--limit 50] [--json]
+  apptrace native search <target-id> <query> [--kind procedures|strings] [--json]
+  apptrace native decompile <target-id> <function-name> [--json]
+  apptrace evidence <target-id> [--json]
+  apptrace compare <target-id> <left-artifact-id> <right-artifact-id> [--force] [--json]
+  apptrace capabilities [target-id] [--json]
   apptrace engine install <engine-file> [--sha256 <digest>]
+
+Add --json for machine-readable output.
   apptrace mcp
 
 Examples:
@@ -445,7 +458,7 @@ async function authStatus(requireAuthenticated = false): Promise<void> {
   });
 }
 
-async function addTarget(source: string): Promise<void> {
+async function addTarget(source: string, json = false): Promise<void> {
   await withCore(async (core) => {
     const resolved = (await core.handle(CHANNELS.targetsResolve, {
       input: source
@@ -453,13 +466,26 @@ async function addTarget(source: string): Promise<void> {
     const target = (await core.handle(CHANNELS.targetsCreate, {
       resolutionId: resolved.resolutionId
     })) as TargetRecord;
-    printJson(target);
+    if (json) {
+      printJson(target);
+      return;
+    }
+    process.stdout.write(
+      `Added ${target.id}  ${target.name ?? "?"}  ${target.targetRef.platform}\n`
+    );
   });
 }
 
-async function listTargets(): Promise<void> {
+async function listTargets(json: boolean): Promise<void> {
   await withCore(async (core) => {
-    printJson(await core.handle(CHANNELS.targetsList, {}));
+    const targets = (await core.handle(CHANNELS.targetsList, {})) as Parameters<
+      typeof renderTargets
+    >[0];
+    if (json) {
+      printJson(targets);
+      return;
+    }
+    process.stdout.write(`${renderTargets(targets)}\n`);
   });
 }
 
@@ -534,20 +560,31 @@ function printAnalysis(result: AnalyzeAppResult): void {
   }
 }
 
-async function report(targetId: string): Promise<void> {
+async function report(targetId: string, json: boolean): Promise<void> {
   await withCore(async (core) => {
     const service = new AppAnalysisService(core);
-    printJson(await service.runCapability(targetId, "generate:report"));
+    const job = await service.runCapability(targetId, "generate:report");
+    if (json) {
+      printJson(job);
+      return;
+    }
+    process.stdout.write(`${renderReportJob(job)}\n`);
   });
 }
 
-async function getJob(jobId: string): Promise<void> {
+async function getJob(jobId: string, json: boolean): Promise<void> {
   await withCore(async (core) => {
     const result = (await core.handle(CHANNELS.jobsGet, { jobId })) as {
       job: JobRecord;
       events: unknown[];
     };
-    printJson({ ...result, events: result.events.slice(-50) });
+    if (json) {
+      printJson({ ...result, events: result.events.slice(-50) });
+      return;
+    }
+    process.stdout.write(
+      `${renderJob({ ...result.job, events: result.events })}\n`
+    );
   });
 }
 
@@ -561,14 +598,23 @@ async function searchFindings(
     .map((value) => value.trim())
     .filter(Boolean);
   const limit = Number(option(args, "--limit") ?? 50);
+  const json = hasFlag(args, "--json");
   await withCore(async (core) => {
-    printJson(
-      await core.handle(CHANNELS.findingsSearch, {
-        targetId,
-        query,
-        types,
-        limit: Number.isFinite(limit) ? limit : 50
-      })
+    const result = await core.handle(CHANNELS.findingsSearch, {
+      targetId,
+      query,
+      types,
+      limit: Number.isFinite(limit) ? limit : 50
+    });
+    if (json) {
+      printJson(result);
+      return;
+    }
+    process.stdout.write(
+      `${renderFindings({
+        ...(result as Parameters<typeof renderFindings>[0]),
+        query
+      })}\n`
     );
   });
 }
@@ -585,24 +631,25 @@ async function nativeCommand(
       "Usage: apptrace native <search|decompile> <target-id> <query-or-function>"
     );
   }
+  const json = hasFlag(args, "--json");
   await withCore(async (core) => {
     const service = new AppAnalysisService(core);
     if (action === "search") {
-      printJson(
-        await service.runCapability(targetId, "native:search", {
-          query: value,
-          kind: option(args, "--kind") ?? "procedures",
-          mode: option(args, "--mode") ?? "literal"
-        })
-      );
+      const job = await service.runCapability(targetId, "native:search", {
+        query: value,
+        kind: option(args, "--kind") ?? "procedures",
+        mode: option(args, "--mode") ?? "literal"
+      });
+      if (json) printJson(job);
+      else process.stdout.write(`${renderNativeSearch(job)}\n`);
       return;
     }
     if (action === "decompile") {
-      printJson(
-        await service.runCapability(targetId, "native:decompile", {
-          functionName: value
-        })
-      );
+      const job = await service.runCapability(targetId, "native:decompile", {
+        functionName: value
+      });
+      if (json) printJson(job);
+      else process.stdout.write(`${renderDecompile(job)}\n`);
       return;
     }
     throw new CoreFailure(
@@ -612,12 +659,15 @@ async function nativeCommand(
   });
 }
 
-async function evidence(targetId: string): Promise<void> {
+async function evidence(targetId: string, json: boolean): Promise<void> {
   await withCore(async (core) => {
-    printJson(
-      await core.handle(CHANNELS.evidenceList, {
-        targetId
-      })
+    const items = await core.handle(CHANNELS.evidenceList, { targetId });
+    if (json) {
+      printJson(items);
+      return;
+    }
+    process.stdout.write(
+      `${renderEvidence(items as Parameters<typeof renderEvidence>[0])}\n`
     );
   });
 }
@@ -642,23 +692,33 @@ async function compare(
     );
   }
   await withCore(async (core) => {
-    printJson(
-      await new VersionComparisonService(core).compare(
-        targetId,
-        leftArtifactId,
-        rightArtifactId,
-        { force: hasFlag(args, "--force") }
-      )
+    const diff = await new VersionComparisonService(core).compare(
+      targetId,
+      leftArtifactId,
+      rightArtifactId,
+      { force: hasFlag(args, "--force") }
+    );
+    if (hasFlag(args, "--json")) {
+      printJson(diff);
+      return;
+    }
+    process.stdout.write(
+      `${renderCompare(diff as unknown as Parameters<typeof renderCompare>[0])}\n`
     );
   });
 }
 
-async function capabilities(targetId?: string): Promise<void> {
+async function capabilities(targetId?: string, json = false): Promise<void> {
   await withCore(async (core) => {
-    printJson(
-      await core.handle(CHANNELS.capabilitiesList, {
-        ...(targetId ? { targetId } : {})
-      })
+    const items = await core.handle(CHANNELS.capabilitiesList, {
+      ...(targetId ? { targetId } : {})
+    });
+    if (json) {
+      printJson(items);
+      return;
+    }
+    process.stdout.write(
+      `${renderCapabilities(items as Parameters<typeof renderCapabilities>[0])}\n`
     );
   });
 }
@@ -704,9 +764,9 @@ async function main(): Promise<void> {
     if (subcommand === "add") {
       const source = positional(args);
       if (!source) throw new CoreFailure("SOURCE_REQUIRED", "Missing app link or ID.");
-      return addTarget(source);
+      return addTarget(source, hasFlag(args, "--json"));
     }
-    if (subcommand === "list") return listTargets();
+    if (subcommand === "list") return listTargets(hasFlag(args, "--json"));
   }
   if (command === "analyze") {
     const analyzeArgs =
@@ -721,12 +781,12 @@ async function main(): Promise<void> {
   }
   if (command === "report") {
     if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "Missing target ID.");
-    return report(subcommand);
+    return report(subcommand, hasFlag(args, "--json"));
   }
   if (command === "jobs" && subcommand === "get") {
     const jobId = positional(args);
     if (!jobId) throw new CoreFailure("JOB_REQUIRED", "Missing job ID.");
-    return getJob(jobId);
+    return getJob(jobId, hasFlag(args, "--json"));
   }
   if (command === "search") {
     if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "Missing target ID.");
@@ -735,7 +795,7 @@ async function main(): Promise<void> {
   if (command === "native") return nativeCommand(subcommand, args);
   if (command === "evidence") {
     if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "Missing target ID.");
-    return evidence(subcommand);
+    return evidence(subcommand, hasFlag(args, "--json"));
   }
   if (command === "engine" && subcommand === "install") {
     const file = args[0];
@@ -746,7 +806,18 @@ async function main(): Promise<void> {
     if (!subcommand) throw new CoreFailure("TARGET_REQUIRED", "Missing target ID.");
     return compare(subcommand, args[0], args[1], args);
   }
-  if (command === "capabilities") return capabilities(subcommand);
+  if (command === "capabilities") {
+    // `apptrace capabilities --json` puts the flag where the target ID goes.
+    const capabilityArgs =
+      subcommand?.startsWith("--") && subcommand
+        ? [subcommand, ...args]
+        : args;
+    const targetId =
+      subcommand && !subcommand.startsWith("--")
+        ? subcommand
+        : positional(capabilityArgs);
+    return capabilities(targetId, hasFlag(capabilityArgs, "--json"));
+  }
   if (command === "mcp") {
     process.env.APPTRACE_CLI_PATH = __filename;
     const { startMcpServer } = await import("@zhuixin/mcp");
