@@ -62,8 +62,10 @@ apptrace setup --write-config ~/.codex/config.toml --install-skill
 ```
 
 Your agent can run these commands for you. Reload the client's MCP servers after
-connection. These onboarding changes are a local, unpublished candidate; the
-published 0.2.0 release still has the Windows issues documented in
+connection. The first toolchain install fetches roughly 1 GB (JDK, Ghidra,
+ipatool) and, on macOS arm64, compiles Ghidra's decompiler — a few minutes and
+Xcode Command Line Tools. Every download is checked against a pinned SHA-256.
+Windows first-use details are in
 [Windows first-use verification](docs/windows-first-use.md).
 
 **2 · Give your agent an app to analyze**
@@ -186,6 +188,12 @@ uploaded to an AppTrace service, and the target app is never executed.
   Windows host. Native decompilation, MSIX/MSI packages and installers are not supported
   yet; they are reported as limitations.
 - Encrypted binaries are reported as encrypted, never presented as decompiled truth.
+  A stock App Store IPA is encrypted (`cryptid=1`), so native decompilation is only
+  available for slices that are not FairPlay-protected; JavaScript, route, module and
+  metadata analysis is unaffected.
+- App Store acquisition needs an Apple ID that holds a license for the app, and uses
+  `ipatool` under that account. Apple may challenge or rate-limit unfamiliar sign-ins;
+  sign-in happens in a local window, not in the agent context.
 
 ## Security and authorization
 

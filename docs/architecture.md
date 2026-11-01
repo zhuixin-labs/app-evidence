@@ -28,8 +28,9 @@ The public repository owns:
 ## Private engine
 
 The analysis engine is distributed as a separate artifact. It owns the analysis
-implementations and validates a signed feature entitlement before running gated
-capabilities.
+implementations and, when a license token is supplied, validates a signed feature
+entitlement before running gated capabilities. The free build ships every
+capability exposed by the CLI and MCP tool surface.
 
 ## Why a process boundary
 

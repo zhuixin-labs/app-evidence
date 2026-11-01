@@ -3,32 +3,43 @@
 ## Requirements
 
 - Node.js 22.19+
-- pnpm
 - macOS arm64 or Windows x64 for automatic toolchain installation
 - An Apple account with a license for the app you intend to analyze
+- pnpm, only when building from source
 
-## Install the preview
+## Install
 
 ```bash
-git clone git@github.com:zhuixin-labs/app-evidence.git
-cd app-evidence
-pnpm install
-pnpm build
+npm install -g @zhuixin/cli
 ```
+
+Then use `apptrace` for every command below. To work from source instead, clone the
+repository, run `pnpm install && pnpm build`, and replace `apptrace` with
+`node packages/cli/dist/index.js`.
 
 ## Initialize
 
 Generate an MCP configuration and install the agent instructions before preparing tools:
 
 ```bash
-node packages/cli/dist/index.js setup --write-config ~/.codex/config.toml --install-skill
+apptrace setup --write-config ~/.codex/config.toml --install-skill
 ```
 
 Reload or restart the agent client after the configuration is written.
 Ask the agent to analyze an app. It calls `analyze_app`, installs missing tools,
 polls progress, and opens a local Windows login window when needed. It preserves
 the original request and resumes after readiness. Only enter credentials in the
-local window. These changes are an unpublished candidate, not the npm 0.2.0 release.
+local window.
+
+## First run downloads a toolchain
+
+`apptrace setup --install` fetches JDK 21, Ghidra 12.1.4 and ipatool into the
+workspace — roughly 1 GB. On macOS arm64 the Ghidra release has no decompiler
+binary for this platform, so AppTrace compiles it from the source tree inside the
+Ghidra archive. That step needs Xcode Command Line Tools (`xcode-select --install`)
+and takes a few minutes. Downloads are verified against the pinned SHA-256; the
+official GitHub host is tried first and `https://gh-proxy.com/` is used only as a
+fallback transport when GitHub is unreachable.
 
 Configuration writing merges the AppTrace entry and preserves other servers and
 settings. Existing files are backed up next to the original as `.<id>.bak` before
@@ -45,8 +56,7 @@ else. To pin a specific build — offline installs, or an air-gapped machine —
 artifact into the workspace with checksum verification:
 
 ```bash
-node packages/cli/dist/index.js engine install /path/to/engine-main.js \
-  --sha256 <artifact-sha256>
+apptrace engine install /path/to/engine-main.js --sha256 <artifact-sha256>
 ```
 
 A workspace engine takes precedence over the packaged one and is discovered
@@ -55,8 +65,8 @@ automatically.
 ## Manual terminal fallback
 
 ```bash
-node packages/cli/dist/index.js auth login
-node packages/cli/dist/index.js auth status
+apptrace auth login
+apptrace auth status
 ```
 
 Use your own terminal for the password, 2FA code, and keychain passphrase. AppTrace
@@ -65,7 +75,7 @@ does not send those values to the agent.
 ## Run the first analysis
 
 ```bash
-node packages/cli/dist/index.js analyze \
+apptrace analyze \
   https://apps.apple.com/cn/app/id1616124777 \
   --goals tech_stack,feature_map,report
 ```
@@ -75,8 +85,8 @@ Artifacts, Evidence, jobs, and reports are stored in the local workspace.
 ## Ask a follow-up question
 
 ```bash
-node packages/cli/dist/index.js search <target-id> thread --type route
-node packages/cli/dist/index.js evidence <target-id>
+apptrace search <target-id> thread --type route
+apptrace evidence <target-id>
 ```
 
 With MCP configured, use natural language in the agent instead of running these
@@ -85,7 +95,7 @@ commands manually.
 ## Troubleshooting
 
 ```bash
-node packages/cli/dist/index.js doctor --json
+apptrace doctor --json
 ```
 
 If authentication is missing, run `auth login`. If the analysis engine is missing,
