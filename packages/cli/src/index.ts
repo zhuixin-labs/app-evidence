@@ -506,7 +506,14 @@ function printAnalysis(result: AnalyzeAppResult): void {
   );
   console.log(`Routes: ${result.routes?.count ?? 0}`);
   console.log(`Modules: ${result.modules?.count ?? 0}`);
-  console.log(`Network endpoints: ${result.networkEndpoints?.count ?? 0}`);
+  const endpointCount = result.networkEndpoints?.count ?? 0;
+  console.log(
+    `Network endpoints: ${endpointCount}${
+      endpointCount === 0
+        ? " (none classified; a base URL assembled at runtime is invisible to static analysis)"
+        : ""
+    }`
+  );
   if (result.native) {
     console.log(
       `Native: ${result.native.procedureCount ?? "?"} procedures, ${

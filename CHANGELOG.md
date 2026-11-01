@@ -18,6 +18,14 @@ First release where a new user can install the toolchain and reach native analys
 
 ### Changed
 
+- Reports open with a `Summary` section that states the identity, the static surface,
+  the encryption verdict and what the evidence cannot establish. Encryption is read
+  from the native-inspection job, so "not inspected" no longer reads as "not encrypted".
+- Routes are grouped by path prefix instead of a flat 20-item list; the dominant group
+  is split further, and splitting stops when it would enumerate one group per route.
+  The full inventory stays available inside a collapsible block.
+- An empty network-endpoint result now says explicitly that it is not evidence the app
+  makes no network calls, in both the report and the CLI summary.
 - Native symbol search, decompilation and version comparison are free. They
   previously required a signed license that had no issuance path, so the README
   promised capabilities no external user could use. Engine 0.2.5.
