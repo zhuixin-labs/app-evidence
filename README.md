@@ -24,6 +24,17 @@
 
 ---
 
+## Demo
+
+A real run: five CLI commands, one agent session against the MCP server, then the report.
+
+<p align="center">
+  <img src="scripts/demo/demo.gif" alt="AppTrace demo: analyze a target, ask the agent, read the report" width="100%">
+</p>
+
+The recording is generated from real output — see [`scripts/demo/`](scripts/demo/) for the
+capture and render pipeline, including how the agent segment is produced.
+
 ## The problem
 
 Your agent is great at reading a repository. An App Store app has no repository.
